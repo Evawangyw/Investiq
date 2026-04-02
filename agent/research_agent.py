@@ -1,10 +1,5 @@
 """
 agent/research_agent.py — ReAct 投研 Agent（含反思循环）
-
-Week 3 新增：
-1. 注册竞品对比 Tool
-2. 加入 Reflection 机制：Agent 生成初稿后，
-   第二个 LLM 调用检查论据是否充分，不足则返回补充指令
 """
 
 import os
@@ -307,7 +302,6 @@ def get_report_by_id(report_id: int) -> dict:
 
 
 if __name__ == "__main__":
-    # Day 19：用新的反思机制跑一份完整报告
     result = run_research_agent(
         question="基于最新财报、竞品对比和近期新闻，NVDA 当前估值是否合理？看多和看空的核心论点分别是什么？",
         ticker="NVDA",

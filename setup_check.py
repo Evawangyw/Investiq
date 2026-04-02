@@ -1,8 +1,5 @@
 """
 setup_check.py — 一键验证所有组件是否正常
-
-运行：python setup_check.py
-全部打 ✓ 才算 Day 1-2 完成
 """
 
 import sys

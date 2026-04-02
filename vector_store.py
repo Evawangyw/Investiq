@@ -1,9 +1,5 @@
 """
 vector_store.py — Chroma 向量数据库的初始化和操作封装
-
-这里做了两件事：
-1. 初始化 Chroma client，创建 collection（可以理解为一张"语义表"）
-2. 封装 add / query 两个操作，后续 Tools 直接调用这两个函数
 """
 
 import chromadb
@@ -11,8 +7,6 @@ from chromadb.utils import embedding_functions
 
 
 # 用 Chroma 内置的 sentence-transformers 做 embedding
-# 第一次运行会自动下载模型（约 90MB），之后离线可用
-# 如果你有 OpenAI API Key 也可以换成 OpenAIEmbeddingFunction
 ef = embedding_functions.DefaultEmbeddingFunction()
 
 # 持久化存在本地 ./chroma_data 目录，重启不丢失
