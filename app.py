@@ -8,6 +8,249 @@ import streamlit as st
 import json
 import pandas as pd
 from datetime import datetime
+from dotenv import load_dotenv
+import os
+
+# ── 页面配置（必须最先调用）──
+st.set_page_config(
+    page_title="InvestIQ — AI 投研 Agent",
+    page_icon="📈",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+_ENV_PATH = os.path.join(os.path.dirname(__file__), ".env")
+load_dotenv(_ENV_PATH)
+
+
+# ══════════════════════════════════════════════════════
+# 设置向导 — 在任何其他模块导入之前运行
+# ══════════════════════════════════════════════════════
+
+def _check_setup() -> dict:
+    """检测各组件是否就绪，返回状态字典"""
+    status = {"env": False, "db": False, "data": False, "claude": False}
+
+    # 1. 环境变量
+    required = ["ANTHROPIC_API_KEY", "DB_HOST", "DB_NAME", "DB_USER", "DB_PASSWORD"]
+    if all(os.getenv(k) for k in required):
+        status["env"] = True
+
+    # 2. 数据库 & 表
+    if status["env"]:
+        try:
+            from sqlalchemy import create_engine, text as _text
+            _e = create_engine(
+                f"postgresql://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}"
+                f"@{os.getenv('DB_HOST')}:{os.getenv('DB_PORT', '5432')}/{os.getenv('DB_NAME')}",
+                pool_pre_ping=True
+            )
+            with _e.connect() as c:
+                c.execute(_text("SELECT COUNT(*) FROM filings"))
+            status["db"] = True
+        except Exception:
+            pass
+
+    # 3. 是否有财报数据
+    if status["db"]:
+        try:
+            from sqlalchemy import create_engine, text as _text
+            _e = create_engine(
+                f"postgresql://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}"
+                f"@{os.getenv('DB_HOST')}:{os.getenv('DB_PORT', '5432')}/{os.getenv('DB_NAME')}",
+                pool_pre_ping=True
+            )
+            with _e.connect() as c:
+                cnt = c.execute(_text("SELECT COUNT(*) FROM filings")).scalar()
+            status["data"] = cnt > 0
+        except Exception:
+            pass
+
+    # 4. Claude API
+    if status["env"]:
+        try:
+            import anthropic
+            anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY")).models.list()
+            status["claude"] = True
+        except Exception:
+            status["claude"] = True  # 网络延迟不阻断，乐观假设
+
+    return status
+
+
+def _render_setup_wizard():
+    """渲染设置向导页面，引导用户完成初始化"""
+    st.title("欢迎使用 InvestIQ")
+    st.caption("在开始使用前，请完成以下初始化步骤")
+    st.divider()
+
+    status = _check_setup()
+
+    # ── 步骤 1：配置 API 密钥 ──
+    step1_ok = status["env"]
+    with st.expander(
+        f"{'✅' if step1_ok else '⚙️'} 第一步：配置 API 密钥",
+        expanded=not step1_ok
+    ):
+        if step1_ok:
+            st.success("环境变量已配置完毕")
+        else:
+            st.markdown("请在项目根目录创建 `.env` 文件，填入以下内容：")
+            st.code("""ANTHROPIC_API_KEY=sk-ant-api03-xxxxxxxx
+
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=investiq
+DB_USER=postgres
+DB_PASSWORD=your_password
+
+NEWS_API_KEY=your_newsapi_key
+TARGET_TICKER=NVDA""", language="bash")
+
+            env_path = _ENV_PATH
+            if os.path.exists(env_path):
+                st.info(f"`.env` 文件已存在于 `{env_path}`，但部分必填项仍为空，请检查")
+            else:
+                st.warning(f"`.env` 文件不存在，请在 `{os.path.dirname(env_path)}` 目录下创建")
+
+            # 提供表单直接写入
+            st.markdown("**或者在此直接填写（会写入 .env 文件）：**")
+            with st.form("env_form"):
+                ak = st.text_input("ANTHROPIC_API_KEY", type="password", placeholder="sk-ant-api03-...")
+                db_host = st.text_input("DB_HOST", value="localhost")
+                db_port = st.text_input("DB_PORT", value="5432")
+                db_name = st.text_input("DB_NAME", value="investiq")
+                db_user = st.text_input("DB_USER", value="postgres")
+                db_pass = st.text_input("DB_PASSWORD", type="password")
+                news_key = st.text_input("NEWS_API_KEY（可选）", type="password")
+                submitted = st.form_submit_button("💾 保存配置", type="primary")
+                if submitted and ak and db_pass:
+                    lines = [
+                        f"ANTHROPIC_API_KEY={ak}",
+                        f"DB_HOST={db_host}",
+                        f"DB_PORT={db_port}",
+                        f"DB_NAME={db_name}",
+                        f"DB_USER={db_user}",
+                        f"DB_PASSWORD={db_pass}",
+                        f"NEWS_API_KEY={news_key}",
+                        "TARGET_TICKER=NVDA",
+                    ]
+                    with open(env_path, "w") as f:
+                        f.write("\n".join(lines))
+                    load_dotenv(env_path, override=True)
+                    st.success("✅ .env 已保存，请刷新页面")
+                    st.rerun()
+
+    # ── 步骤 2：初始化数据库 ──
+    step2_ok = status["db"]
+    with st.expander(
+        f"{'✅' if step2_ok else '🗄️'} 第二步：初始化数据库",
+        expanded=step1_ok and not step2_ok
+    ):
+        if step2_ok:
+            st.success("PostgreSQL 连接正常，数据表已就绪")
+        elif not step1_ok:
+            st.info("请先完成第一步")
+        else:
+            st.markdown("""
+确保 PostgreSQL 已在本地运行，且已创建名为 `investiq` 的数据库：
+
+```sql
+CREATE DATABASE investiq;
+```
+
+然后点击下方按钮自动建表：
+""")
+            if st.button("🗄️ 初始化数据库表", type="primary"):
+                try:
+                    from db import init_db
+                    init_db()
+                    st.success("✅ 数据库表创建成功，请刷新页面")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"初始化失败：{e}")
+                    st.caption("请检查 PostgreSQL 是否运行，以及 .env 中的数据库配置是否正确")
+
+    # ── 步骤 3：拉取初始数据 ──
+    step3_ok = status["data"]
+    with st.expander(
+        f"{'✅' if step3_ok else '📥'} 第三步：拉取财报与新闻数据",
+        expanded=step2_ok and not step3_ok
+    ):
+        if step3_ok:
+            st.success("本地数据库已有财报数据，可以开始使用")
+        elif not step2_ok:
+            st.info("请先完成前两步")
+        else:
+            st.markdown("选择要初始化的股票，系统将自动拉取 SEC 财报与近期新闻：")
+            init_ticker = st.selectbox(
+                "初始化标的",
+                ["NVDA", "AMD", "INTC", "MSFT", "TSLA", "META", "AAPL", "GOOGL", "AMZN"],
+                key="init_ticker"
+            )
+            c1, c2 = st.columns(2)
+            with c1:
+                if st.button("📊 拉取财报数据", use_container_width=True):
+                    with st.spinner(f"正在从 SEC EDGAR 拉取 {init_ticker} 财报（约30秒）..."):
+                        try:
+                            from tools.filing_tool import fetch_and_store_filings
+                            fetch_and_store_filings(ticker=init_ticker, count=6)
+                            st.success(f"✅ {init_ticker} 财报数据已就绪")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"拉取失败：{e}")
+            with c2:
+                if st.button("📰 拉取近期新闻", use_container_width=True, disabled=not os.getenv("NEWS_API_KEY")):
+                    with st.spinner(f"正在拉取 {init_ticker} 近期新闻..."):
+                        try:
+                            from tools.news_tool import fetch_and_store_news
+                            count = fetch_and_store_news(days_back=25, ticker=init_ticker)
+                            st.success(f"✅ 已存入 {count} 条新闻")
+                        except Exception as e:
+                            st.error(f"拉取失败：{e}")
+            if not os.getenv("NEWS_API_KEY"):
+                st.caption("💡 新闻拉取需要 NEWS_API_KEY（可选），无此 key 不影响财报分析功能")
+
+            if st.button("⚡ 一键初始化（财报 + 新闻）", type="primary", use_container_width=True):
+                prog = st.progress(0, "开始...")
+                try:
+                    from tools.filing_tool import fetch_and_store_filings
+                    prog.progress(20, f"拉取 {init_ticker} 财报...")
+                    fetch_and_store_filings(ticker=init_ticker, count=6)
+                    prog.progress(70, "财报完成，拉取新闻...")
+                    if os.getenv("NEWS_API_KEY"):
+                        from tools.news_tool import fetch_and_store_news
+                        fetch_and_store_news(days_back=25, ticker=init_ticker)
+                    prog.progress(100, "完成！")
+                    st.success(f"✅ {init_ticker} 初始化完成，正在跳转...")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"初始化失败：{e}")
+
+    st.divider()
+    # 进度概览
+    steps_done = sum([step1_ok, step2_ok, step3_ok])
+    st.progress(steps_done / 3, text=f"初始化进度：{steps_done}/3 步完成")
+    if steps_done == 3:
+        st.success("🎉 所有步骤已完成！点击下方按钮进入主界面")
+        if st.button("🚀 进入 InvestIQ", type="primary"):
+            st.session_state._setup_done = True
+            st.rerun()
+
+
+# ── 检查是否需要显示向导 ──
+_setup_status = _check_setup()
+_needs_setup = not (_setup_status["env"] and _setup_status["db"])
+_explicitly_requested = st.session_state.get("_setup_done") is False  # 用户主动点击"初始化新标的"
+
+if _needs_setup or _explicitly_requested:
+    _render_setup_wizard()
+    st.stop()
+
+
+# ══════════════════════════════════════════════════════
+# 正常应用启动（setup 完成后）
+# ══════════════════════════════════════════════════════
 
 from agent.research_agent import (
     run_research_agent, get_report_history, get_report_by_id,
@@ -15,10 +258,6 @@ from agent.research_agent import (
 )
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from dotenv import load_dotenv
-import os
-load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
-
 from sqlalchemy import create_engine, text
 
 
@@ -46,15 +285,7 @@ def get_market_data(ticker: str) -> dict | None:
 engine = create_engine(
     f"postgresql://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}"
     f"@{os.getenv('DB_HOST')}:{os.getenv('DB_PORT', '5432')}/{os.getenv('DB_NAME')}",
-    pool_pre_ping=True  # 每次使用前检查连接是否有效
-)
-
-# ── 页面配置 ──
-st.set_page_config(
-    page_title="InvestIQ — AI 投研 Agent",
-    page_icon="📈",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    pool_pre_ping=True
 )
 
 # ── 样式 ──
@@ -157,6 +388,11 @@ with st.sidebar:
             st.rerun()
         except Exception as e:
             st.error(f"失败：{e}")
+
+    st.divider()
+    if st.button("➕ 初始化新标的", use_container_width=True, help="为新股票代码拉取财报和新闻数据"):
+        st.session_state._setup_done = False
+        st.rerun()
 
 
 # ════════════════════════════════
