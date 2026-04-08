@@ -9,7 +9,10 @@ import json
 import pandas as pd
 from datetime import datetime
 
-from agent.research_agent import run_research_agent, get_report_history, get_report_by_id
+from agent.research_agent import (
+    run_research_agent, get_report_history, get_report_by_id,
+    run_pass1, run_pass2, save_report
+)
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from dotenv import load_dotenv
@@ -17,6 +20,29 @@ import os
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
 from sqlalchemy import create_engine, text
+
+
+@st.cache_data(ttl=300)
+def get_market_data(ticker: str) -> dict | None:
+    """从 Yahoo Finance 获取实时行情数据，缓存 5 分钟"""
+    try:
+        import yfinance as yf
+        info = yf.Ticker(ticker).info
+        price = info.get("currentPrice") or info.get("regularMarketPrice")
+        return {
+            "price": price,
+            "currency": info.get("currency", "USD"),
+            "pe": info.get("trailingPE"),
+            "forward_pe": info.get("forwardPE"),
+            "market_cap": info.get("marketCap"),
+            "week52_high": info.get("fiftyTwoWeekHigh"),
+            "week52_low": info.get("fiftyTwoWeekLow"),
+            "day_change_pct": info.get("regularMarketChangePercent"),
+        }
+    except Exception:
+        return None
+
+
 engine = create_engine(
     f"postgresql://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}"
     f"@{os.getenv('DB_HOST')}:{os.getenv('DB_PORT', '5432')}/{os.getenv('DB_NAME')}",
@@ -66,17 +92,23 @@ with st.sidebar:
 
     page = st.radio(
     "导航",
-    ["🏠 首页", "📝 生成报告", "📚 历史报告", "📰 新闻概览", "🔧 系统状态"],
+    ["🏠 首页", "📝 生成报告", "📚 历史报告", "📰 新闻概览", "🗃️ 数据管理"],
     label_visibility="collapsed"
 )
 
     st.divider()
-    ticker = st.selectbox(
-        "分析标的",
-        ["NVDA", "AMD", "INTC", "MSFT", "TSLA", "META"],
-        index=0
-    )
-    st.caption(f"数据来源：SEC XBRL + NewsAPI")
+    _PRESET_TICKERS = ["NVDA", "AMD", "INTC", "MSFT", "TSLA", "META", "AAPL", "GOOGL", "AMZN", "其他（自定义）..."]
+    _ticker_choice = st.selectbox("分析标的", _PRESET_TICKERS, index=0)
+    if _ticker_choice == "其他（自定义）...":
+        _custom = st.text_input(
+            "输入股票代码",
+            placeholder="例如：AAPL、BABA、TSM",
+            max_chars=10
+        ).strip().upper()
+        ticker = _custom if _custom else "NVDA"
+    else:
+        ticker = _ticker_choice
+    st.caption("数据来源：SEC XBRL + Yahoo Finance + NewsAPI")
 
 
     st.divider()
@@ -173,6 +205,31 @@ if page == "🏠 首页":
     with col4:
         st.metric("分析标的", ticker)
 
+    # ── 实时行情卡片 ──
+    mkt = get_market_data(ticker)
+    if mkt and mkt.get("price"):
+        st.divider()
+        st.subheader(f"{ticker} 实时行情")
+        m1, m2, m3, m4, m5 = st.columns(5)
+        price = mkt["price"]
+        chg = mkt.get("day_change_pct")
+        m1.metric(
+            "当前股价",
+            f"${price:,.2f}",
+            delta=f"{chg:+.2f}%" if chg else None,
+            delta_color="normal"
+        )
+        m2.metric("市盈率 (PE)", f"{mkt['pe']:.1f}x" if mkt.get("pe") else "N/A")
+        m3.metric("预期市盈率", f"{mkt['forward_pe']:.1f}x" if mkt.get("forward_pe") else "N/A")
+        cap = mkt.get("market_cap")
+        m4.metric("市值", f"${cap/1e9:.0f}B" if cap else "N/A")
+        hi = mkt.get("week52_high")
+        lo = mkt.get("week52_low")
+        m5.metric("52周区间", f"${lo:.0f} – ${hi:.0f}" if hi and lo else "N/A")
+        st.caption("数据来源：Yahoo Finance，每5分钟刷新")
+    else:
+        st.info("实时行情暂时无法获取（网络或API限制），不影响AI分析功能")
+
     st.divider()
 
     # Agent 架构说明
@@ -195,15 +252,15 @@ if page == "🏠 首页":
     with col_right:
         st.subheader("可用工具")
         tools = [
-            ("📊", "query_sec_filing", "SEC 财报查询"),
-            ("📰", "search_news", "语义新闻检索"),
-            ("📋", "get_recent_headlines", "近期标题概览"),
-            ("📈", "get_financial_factors", "结构化财务因子"),
-            ("🔄", "compare_quarterly_factors", "季度趋势对比"),
-            ("⚡", "compare_with_competitors", "竞品横向对比"),
+            ("📊", "SEC 财报查询", "获取最新季度财务数据"),
+            ("📰", "语义新闻检索", "向量相似度匹配相关报道"),
+            ("📋", "近期标题概览", "读取最新新闻标题"),
+            ("📈", "结构化财务因子", "提取营收/毛利率等关键指标"),
+            ("🔄", "季度趋势对比", "比较相邻两季度变化"),
+            ("⚡", "竞品横向对比", "与同行对比盈利能力"),
         ]
         for icon, name, desc in tools:
-            st.markdown(f"{icon} **{name}**  \n{desc}")
+            st.markdown(f"{icon} **{name}**  \n<small style='color:gray'>{desc}</small>", unsafe_allow_html=True)
 
     st.divider()
     # ── 财务趋势图 ──
@@ -284,14 +341,17 @@ if page == "🏠 首页":
     with st.spinner("拉取竞品数据..."):
         from tools.competitor_tool import compare_with_competitors
         competitor_map = {
-    "NVDA": ["AMD", "INTC"],
-    "AMD":  ["NVDA", "INTC"],
-    "INTC": ["NVDA", "AMD"],
-    "MSFT": ["GOOGL", "AMZN"],
-    "TSLA": ["F", "GM"],
-    "META": ["GOOGL", "SNAP"],
-}
-        competitors = competitor_map.get(ticker, ["AMD", "INTC"])
+            "NVDA": ["AMD", "INTC"],
+            "AMD":  ["NVDA", "INTC"],
+            "INTC": ["NVDA", "AMD"],
+            "MSFT": ["GOOGL", "AMZN"],
+            "TSLA": ["F", "GM"],
+            "META": ["GOOGL", "SNAP"],
+            "AAPL": ["MSFT", "GOOGL"],
+            "GOOGL": ["MSFT", "META"],
+            "AMZN": ["MSFT", "GOOGL"],
+        }
+        competitors = competitor_map.get(ticker, ["MSFT", "GOOGL"])
         comp_result = compare_with_competitors(ticker, competitors)
 
     if comp_result["status"] == "ok":
@@ -398,25 +458,15 @@ if page == "🏠 首页":
 # 生成报告
 # ════════════════════════════════
 elif page == "📝 生成报告":
-    #ticker = st.session_state.get("ticker", "NVDA")
-    if ticker == "NVDA":
-        preset_questions = {
-            "自定义问题...": "",
-            "📊 全面投资价值分析": "基于最新财报、竞品对比和近期新闻，NVDA 当前的投资价值如何？看多和看空的核心论点分别是什么？",
-            "📉 毛利率风险": "NVDA 的毛利率下滑趋势是否值得担忧？Blackwell 良率问题有多严重？",
-            "⚔️ 竞品对比分析": "从竞品对比角度看，NVDA 相对 AMD 的估值溢价是否合理？",
-            "🤖 DeepSeek 威胁评估": "DeepSeek 对 NVDA 的长期需求逻辑是否构成实质威胁？",
-            "🌏 出口管制风险": "NVDA 的出口管制风险有多大？中国市场收入占比及影响分析",
-        }
-    else:
-        preset_questions = {
-            "自定义问题...": "",
-            "📊 全面投资价值分析": f"基于最新财报、竞品对比和近期新闻，{ticker} 当前的投资价值如何？看多和看空的核心论点分别是什么？",
-            "📉 毛利率风险": f"{ticker} 的毛利率下滑趋势是否值得担忧？Blackwell 良率问题有多严重？",
-            "⚔️ 竞品对比分析": f"从竞品对比角度看，{ticker} 相对 AMD 的估值溢价是否合理？",
-            "🤖 DeepSeek 威胁评估": f"DeepSeek 对 {ticker} 的长期需求逻辑是否构成实质威胁？",
-            "🌏 出口管制风险": f"{ticker} 的出口管制风险有多大？中国市场收入占比及影响分析",
-        }
+    preset_questions = {
+        "自定义问题...": "",
+        "📊 全面投资价值分析": f"基于最新财报、竞品对比和近期新闻，{ticker} 当前的投资价值如何？看多和看空的核心论点分别是什么？",
+        "📉 盈利能力分析": f"{ticker} 的毛利率与净利率趋势是否健康？近期有哪些影响盈利能力的风险因素？",
+        "⚔️ 竞品格局分析": f"从竞品对比角度看，{ticker} 的相对竞争优势和当前估值是否合理？",
+        "📰 近期重大事件影响": f"近期有哪些重大新闻事件对 {ticker} 的股价或基本面产生了实质影响？",
+        "🌏 宏观与政策风险": f"当前宏观环境（利率走势、地缘政治、行业监管）对 {ticker} 的影响有多大？",
+    }
+
     st.title("生成新报告")
     selected = st.selectbox("选择预设问题或自定义", list(preset_questions.keys()))
     question = st.text_area(
@@ -428,64 +478,185 @@ elif page == "📝 生成报告":
 
     col1, col2 = st.columns([1, 3])
     with col1:
-        use_reflection = st.toggle("启用反思循环", value=True, help="开启后 Agent 会自动检查报告质量并补充不足")
+        use_reflection = st.toggle("深度分析模式", value=True)
     with col2:
         if use_reflection:
-            st.caption("✓ Agent 将生成初稿 → 审查质量 → 补充信息 → 输出最终报告")
+            st.caption("✓ **深度模式**：初稿完成后，审查员 LLM 会找出论据缺口并让你决定是否继续补充研究")
         else:
-            st.caption("Agent 将直接生成报告，速度更快")
+            st.caption("⚡ **快速模式**：单轮直接输出报告（约30–60秒）")
 
-    if st.button("🚀 开始分析", type="primary", disabled=not question.strip()):
+    # 工具名 → 中文动作描述（复用于两个阶段）
+    _TOOL_LABELS = {
+        "query_sec_filing":          ("📄 查询SEC财报",   "读取季报原始数据"),
+        "get_financial_factors":     ("📈 提取财务因子",  "计算营收/毛利率等关键指标"),
+        "compare_quarterly_factors": ("🔄 对比季度趋势",  "分析环比与同比变化"),
+        "get_recent_headlines":      ("📰 浏览近期新闻",  "了解最新市场事件"),
+        "search_news":               ("🔍 语义检索新闻",  "深挖特定话题相关报道"),
+        "compare_with_competitors":  ("⚔️ 竞品横向对比", "与同行对比盈利能力"),
+    }
 
-        # 实时日志容器
-        st.markdown("**Agent 思考过程**")
-        log_box = st.container(border=True)
-        step_counter = [0]
-        log_lines = []
+    def _fmt_input_hint(tool_name: str, tool_input: dict) -> str:
+        if tool_name == "search_news":
+            return f"搜索词：「{tool_input.get('query', '')}」"
+        if tool_name == "query_sec_filing":
+            return f"标的：{tool_input.get('ticker', '')}  类型：{tool_input.get('query_type', 'latest')}"
+        if tool_name == "compare_with_competitors":
+            return f"对比对象：{', '.join(tool_input.get('competitors', []))}"
+        if tool_name == "get_recent_headlines":
+            return f"标的：{tool_input.get('ticker', '')}，获取最新 {tool_input.get('n', 10)} 条标题"
+        return ""
 
+    def make_on_tool_call(log_box, log_lines, step_counter):
         def on_tool_call(status, tool_name, tool_input, result):
             step_counter[0] += 1
+            lbl = _TOOL_LABELS.get(tool_name, ("🔧", tool_name))
+            icon, action = lbl[0], lbl[1]
+            hint = _fmt_input_hint(tool_name, tool_input)
             if status == "calling":
-                line = f"⏳ **Step {step_counter[0]}** · `{tool_name}`  \n`{json.dumps(tool_input, ensure_ascii=False)[:80]}`"
+                line = f"⏳ **步骤 {step_counter[0]}** · {icon} {action}  \n<small style='color:gray'>{hint}</small>"
                 log_lines.append(("calling", line, tool_name))
             else:
-                # 把最后一个 calling 改成 done
-                for i in range(len(log_lines)-1, -1, -1):
+                for i in range(len(log_lines) - 1, -1, -1):
                     if log_lines[i][0] == "calling" and log_lines[i][2] == tool_name:
-                        preview = str(result)[:120].replace("\n", " ")
-                        log_lines[i] = ("done", f"✓ **Step {step_counter[0]}** · `{tool_name}`  \n`{preview}`", tool_name)
+                        log_lines[i] = ("done", f"✅ **步骤 {step_counter[0]}** · {icon} {action}  \n<small style='color:gray'>{hint}</small>", tool_name)
                         break
-
             with log_box:
                 log_box.empty()
                 for _, line, _ in log_lines:
-                    st.markdown(line)
+                    st.markdown(line, unsafe_allow_html=True)
+        return on_tool_call
 
-        result_container = st.empty()
+    # ── 阶段状态机（用 session_state 跨 rerun 保持状态）──
+    # stage: "idle" | "running_p1" | "awaiting_approval" | "running_p2" | "done"
+    if "gen_stage" not in st.session_state:
+        st.session_state.gen_stage = "idle"
+
+    if st.session_state.gen_stage in ("idle", "done"):
+        if st.button("🚀 开始分析", type="primary", disabled=not question.strip(), key="gen_btn"):
+            st.session_state.gen_stage = "running_p1"
+            st.session_state.gen_question = question
+            st.session_state.gen_ticker = ticker
+            st.session_state.gen_use_reflection = use_reflection
+            st.rerun()
+
+    # ── 阶段：运行第一轮 ──
+    if st.session_state.gen_stage == "running_p1":
+        q = st.session_state.gen_question
+        t = st.session_state.gen_ticker
+        do_reflect = st.session_state.gen_use_reflection
+
+        st.markdown("**第一阶段：Agent 数据收集与初稿**")
+        log_box = st.container(border=True)
+        log_lines, step_counter = [], [0]
+        on_tool_call = make_on_tool_call(log_box, log_lines, step_counter)
 
         try:
-            result = run_research_agent(
-                question=question,
-                ticker=ticker,
-                use_reflection=use_reflection,
+            p1 = run_pass1(q, t, on_tool_call=on_tool_call)
+            st.session_state.gen_draft = p1["draft"]
+            st.session_state.gen_tool_calls = p1["tool_calls"]
+            st.session_state.gen_reflection = p1["reflection"]
+
+            if do_reflect and not p1["reflection"].get("pass") and p1["reflection"].get("missing"):
+                st.session_state.gen_stage = "awaiting_approval"
+            else:
+                # 直接保存并展示
+                rid = save_report(t, q, p1["draft"], p1["tool_calls"])
+                st.session_state.gen_report_id = rid
+                st.session_state.gen_final = p1["draft"]
+                st.session_state.gen_stage = "done"
+        except Exception as e:
+            import traceback
+            st.error(f"生成失败：{e}")
+            st.error(traceback.format_exc())
+            st.session_state.gen_stage = "idle"
+        st.rerun()
+
+    # ── 阶段：等待用户确认 ──
+    if st.session_state.gen_stage == "awaiting_approval":
+        reflection = st.session_state.gen_reflection
+        missing = reflection.get("missing", [])
+
+        st.markdown("**第一阶段：已完成** ✅")
+        st.divider()
+        st.subheader("审查员意见")
+        st.warning(f"审查 LLM 发现 **{len(missing)}** 处论据不足，建议补充研究：")
+        for m in missing:
+            st.markdown(f"• {m}")
+
+        st.divider()
+        st.markdown("**请选择下一步操作：**")
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.button("🔬 继续深化研究（推荐）", type="primary", use_container_width=True):
+                st.session_state.gen_stage = "running_p2"
+                st.rerun()
+        with c2:
+            if st.button("📄 直接使用初稿", use_container_width=True):
+                rid = save_report(
+                    st.session_state.gen_ticker,
+                    st.session_state.gen_question,
+                    st.session_state.gen_draft,
+                    st.session_state.gen_tool_calls
+                )
+                st.session_state.gen_report_id = rid
+                st.session_state.gen_final = st.session_state.gen_draft
+                st.session_state.gen_stage = "done"
+                st.rerun()
+
+        with st.expander("查看初稿内容"):
+            st.markdown(st.session_state.gen_draft)
+
+    # ── 阶段：运行第二轮 ──
+    if st.session_state.gen_stage == "running_p2":
+        st.markdown("**第二阶段：Agent 补充研究**")
+        log_box = st.container(border=True)
+        log_lines, step_counter = [], [0]
+        on_tool_call = make_on_tool_call(log_box, log_lines, step_counter)
+
+        try:
+            p2 = run_pass2(
+                draft=st.session_state.gen_draft,
+                reflection=st.session_state.gen_reflection,
+                ticker=st.session_state.gen_ticker,
+                tool_calls_so_far=st.session_state.gen_tool_calls,
                 on_tool_call=on_tool_call
             )
-
-            # 日志改成折叠
-            with st.expander(f"✓ 完成 — 共 {len(result['tool_calls'])} 次工具调用", expanded=False):
-                for i, call in enumerate(result["tool_calls"], 1):
-                    st.markdown(f"**{i}.** `{call['tool']}`")
-                    st.caption(json.dumps(call['input'], ensure_ascii=False)[:100])
-
-            st.divider()
-            st.subheader("📄 分析报告")
-            st.markdown(result["answer"])
-
+            st.session_state.gen_final = p2["answer"]
+            st.session_state.gen_report_id = p2["report_id"]
+            st.session_state.gen_tool_calls = p2["tool_calls"]
+            st.session_state.gen_stage = "done"
         except Exception as e:
-            st.error(f"生成失败：{str(e)}")
-            st.error(f"错误类型: {type(e).__name__}")
-            st.error(f"详细信息: {str(e)}")
-            st.error(f"Traceback:\n{traceback.format_exc()}")
+            import traceback
+            st.error(f"第二阶段失败：{e}")
+            st.error(traceback.format_exc())
+            st.session_state.gen_stage = "awaiting_approval"
+        st.rerun()
+
+    # ── 阶段：展示最终报告 ──
+    if st.session_state.gen_stage == "done":
+        reflection = st.session_state.get("gen_reflection")
+        if reflection:
+            if reflection.get("pass"):
+                st.success("✅ 审查通过：报告论据完整，逻辑均衡")
+            else:
+                # 用户选择了"继续深化"
+                st.success("✅ 深度分析完成：已根据审查意见补充研究")
+
+        with st.expander(f"工具调用链（共 {len(st.session_state.get('gen_tool_calls', []))} 次）", expanded=False):
+            for i, call in enumerate(st.session_state.get("gen_tool_calls", []), 1):
+                lbl = _TOOL_LABELS.get(call["tool"], ("🔧", call["tool"]))
+                st.markdown(f"**{i}.** {lbl[0]} {lbl[1]}")
+                st.caption(_fmt_input_hint(call["tool"], call["input"]))
+
+        st.divider()
+        st.subheader("📄 分析报告")
+        st.markdown(st.session_state.gen_final)
+
+        if st.button("🔄 重新分析", use_container_width=False):
+            st.session_state.gen_stage = "idle"
+            for k in ["gen_draft", "gen_tool_calls", "gen_reflection", "gen_final", "gen_report_id"]:
+                st.session_state.pop(k, None)
+            st.rerun()
 
 
 # ════════════════════════════════
@@ -772,65 +943,68 @@ elif page == "📰 新闻概览":
 # ════════════════════════════════
 # 系统状态
 # ════════════════════════════════
-elif page == "🔧 系统状态":
-    #ticker = st.session_state.get("ticker", "NVDA")
-    st.title("系统状态")
+elif page == "🗃️ 数据管理":
+    st.title("数据管理")
+    st.caption("查看本地数据状态，管理财报与新闻数据库")
 
-    col1, col2 = st.columns(2)
+    # ── 数据概览卡片 ──
+    col1, col2, col3 = st.columns(3)
+    try:
+        with engine.connect() as conn:
+            filing_count = conn.execute(text(f"SELECT COUNT(*) FROM filings WHERE ticker='{ticker}'")).scalar()
+            latest_period = conn.execute(text(f"SELECT period FROM filings WHERE ticker='{ticker}' ORDER BY period DESC LIMIT 1")).scalar()
+        col1.metric("财报季度数", f"{filing_count} 个季度", help="已存储的 SEC 季报数量")
+        col2.metric("最新数据期", latest_period or "暂无", help="最新一期财报的报告期")
+    except Exception as e:
+        col1.error(f"数据库异常：{e}")
 
-    with col1:
-        st.subheader("数据库")
-        try:
-            with engine.connect() as conn:
-                filing_rows = conn.execute(
-                text(f"SELECT period, raw_text FROM filings WHERE ticker='{ticker}' ORDER BY period DESC")).fetchall()
-
-            st.success("PostgreSQL 连接正常")
-            if filing_rows:
-                records = []
-                for r in filing_rows:
-                    d = json.loads(r[1]) if r[1] else {}
-                    records.append({
-            "季度": r[0],
-            "毛利率(%)": d.get("gross_margin"),
-            "同比增速(%)": d.get("revenue_growth_yoy"),
-        })
-                df = pd.DataFrame(records)
-                st.dataframe(df, use_container_width=True)
-        except Exception as e:
-            st.error(f"连接失败：{e}")
-
-    with col2:
-        st.subheader("向量数据库")
-        try:
-            from vector_store import get_collection
-            col = get_collection("investiq_news")
-            count = col.count()
-            st.success(f"Chroma 连接正常")
-            st.metric("新闻条数", f"{count} 条")
-        except Exception as e:
-            st.error(f"连接失败：{e}")
+    try:
+        from vector_store import get_collection
+        news_col = get_collection("investiq_news")
+        news_count = news_col.count()
+        col3.metric("新闻条数", f"{news_count} 条", help="向量数据库中存储的新闻数量")
+    except Exception as e:
+        col3.error(f"向量库异常：{e}")
 
     st.divider()
-    st.subheader("财务数据预览")
+
+    # ── 财务数据预览 ──
+    st.subheader(f"{ticker} 财务数据")
     try:
         with engine.connect() as conn:
             rows = conn.execute(
-                text(f"SELECT period, raw_text FROM filings WHERE ticker='{ticker}' ORDER BY period DESC LIMIT 6")
+                text(f"SELECT period, raw_text FROM filings WHERE ticker='{ticker}' ORDER BY period DESC LIMIT 8")
             ).fetchall()
 
-        records = []
-        for r in rows:
-            d = json.loads(r[1]) if r[1] else {}
-            rev = d.get("revenue")
-            records.append({
-                "季度": r[0],
-                "营收": f"${rev/1e9:.1f}B" if rev else "N/A",
-                "毛利率": f"{d.get('gross_margin')}%" if d.get('gross_margin') else "N/A",
-                "同比增速": f"{d.get('revenue_growth_yoy')}%" if d.get('revenue_growth_yoy') else "N/A",
-                "净利润": f"${d.get('net_income')/1e9:.1f}B" if d.get('net_income') else "N/A",
-            })
-
-        st.dataframe(pd.DataFrame(records), use_container_width=True, hide_index=True)
+        if not rows:
+            st.info(f"暂无 {ticker} 财务数据，请点击左侧「一键全部刷新」")
+        else:
+            records = []
+            for r in rows:
+                d = json.loads(r[1]) if r[1] else {}
+                rev = d.get("revenue")
+                records.append({
+                    "报告季度": r[0],
+                    "营收": f"${rev/1e9:.1f}B" if rev else "N/A",
+                    "毛利率": f"{d.get('gross_margin')}%" if d.get('gross_margin') else "N/A",
+                    "同比增速": f"{d.get('revenue_growth_yoy')}%" if d.get('revenue_growth_yoy') else "N/A",
+                    "净利润": f"${d.get('net_income')/1e9:.1f}B" if d.get('net_income') else "N/A",
+                })
+            st.dataframe(pd.DataFrame(records), use_container_width=True, hide_index=True)
     except Exception as e:
         st.error(f"数据读取失败：{e}")
+
+    # ── 调试信息（折叠）──
+    with st.expander("系统连接状态（技术详情）"):
+        try:
+            with engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            st.success("PostgreSQL 连接正常")
+        except Exception as e:
+            st.error(f"PostgreSQL 连接失败：{e}")
+        try:
+            from vector_store import get_collection
+            get_collection("investiq_news")
+            st.success("Chroma 向量数据库连接正常")
+        except Exception as e:
+            st.error(f"Chroma 连接失败：{e}")

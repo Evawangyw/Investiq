@@ -212,9 +212,11 @@ def run_research_agent(question: str, ticker: str = "NVDA", use_reflection: bool
 
     # ── 反思循环 ──
     final_report = draft
+    reflection_result = None
     if use_reflection:
         print("\n【反思循环】审查报告质量...")
         reflection = reflect_on_report(draft)
+        reflection_result = reflection
 
         if not reflection["pass"] and reflection.get("search_suggestions"):
             print("\n【第二轮】根据反思结果补充信息...")
@@ -270,7 +272,8 @@ def run_research_agent(question: str, ticker: str = "NVDA", use_reflection: bool
     return {
         "answer": final_report,
         "tool_calls": all_tool_calls,
-        "report_id": report_id
+        "report_id": report_id,
+        "reflection": reflection_result,
     }
 
 
@@ -299,6 +302,87 @@ def get_report_by_id(report_id: int) -> dict:
         "tool_calls": json.loads(row[4]) if row[4] else [],
         "created_at": str(row[5])
     }
+
+
+def run_pass1(question: str, ticker: str, on_tool_call=None) -> dict:
+    """
+    只执行第一轮 Agent + 反思，不执行第二轮。
+    返回：{"draft": str, "tool_calls": list, "reflection": dict}
+    供人机协同模式使用——UI 可在此暂停，让用户确认是否继续。
+    """
+    full_question = f"请分析 {ticker} 股票。具体问题：{question}"
+    result = agent_chat(
+        question=full_question,
+        tools=ALL_TOOLS,
+        tool_executor=tool_executor,
+        system=SYSTEM_PROMPT,
+        on_tool_call=on_tool_call
+    )
+    draft = result["answer"]
+    reflection = reflect_on_report(draft)
+    return {"draft": draft, "tool_calls": result["tool_calls"], "reflection": reflection}
+
+
+def run_pass2(draft: str, reflection: dict, ticker: str, tool_calls_so_far: list, on_tool_call=None) -> dict:
+    """
+    在用户确认后执行第二轮补充研究，并保存最终报告。
+    返回：{"answer": str, "tool_calls": list, "report_id": int, "reflection": dict}
+    """
+    supplement_q = (
+        f"你之前生成了一份关于 {ticker} 的分析报告，有以下内容需要补充：\n"
+        + "\n".join(f"- {m}" for m in reflection["missing"][:2])
+        + f"\n\n请用 2-3 次工具调用补充这些信息，然后输出完整的最终报告。"
+        f"\n\n之前的初稿：\n{draft[:3000]}..."
+    )
+    result2 = agent_chat(
+        question=supplement_q,
+        tools=ALL_TOOLS,
+        tool_executor=tool_executor,
+        system=SYSTEM_PROMPT,
+        max_steps=4,
+        on_tool_call=on_tool_call
+    )
+    final_report = result2["answer"]
+    all_tool_calls = tool_calls_so_far + result2["tool_calls"]
+
+    engine = get_engine()
+    with engine.connect() as conn:
+        row = conn.execute(
+            text("""
+                INSERT INTO reports (ticker, question, content, tool_calls)
+                VALUES (:ticker, :question, :content, :tool_calls)
+                RETURNING id
+            """),
+            {
+                "ticker": ticker,
+                "question": supplement_q[:500],
+                "content": final_report,
+                "tool_calls": json.dumps(all_tool_calls, ensure_ascii=False)
+            }
+        ).fetchone()
+        conn.commit()
+    return {"answer": final_report, "tool_calls": all_tool_calls, "report_id": row[0], "reflection": reflection}
+
+
+def save_report(ticker: str, question: str, content: str, tool_calls: list) -> int:
+    """保存报告并返回 ID"""
+    engine = get_engine()
+    with engine.connect() as conn:
+        row = conn.execute(
+            text("""
+                INSERT INTO reports (ticker, question, content, tool_calls)
+                VALUES (:ticker, :question, :content, :tool_calls)
+                RETURNING id
+            """),
+            {
+                "ticker": ticker,
+                "question": question,
+                "content": content,
+                "tool_calls": json.dumps(tool_calls, ensure_ascii=False)
+            }
+        ).fetchone()
+        conn.commit()
+    return row[0]
 
 
 if __name__ == "__main__":
