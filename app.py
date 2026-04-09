@@ -302,110 +302,88 @@ st.markdown("""
 html, body, [class*="css"] {
     font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
     font-size: 16px;
+    letter-spacing: 0.16px;
 }
 p, li, span, div { font-size: 1rem; }
-.stApp {
-    background: #f0eff6;
-}
+.stApp { background: #f4f4f4; }
 .block-container {
     padding-top: 1rem;
     padding-bottom: 3rem;
     max-width: 1200px;
 }
-/* 隐藏 Streamlit 默认顶部留白，给 option-menu 腾空间 */
-[data-testid="stAppViewContainer"] > section > div:first-child {
-    padding-top: 0;
-}
+[data-testid="stAppViewContainer"] > section > div:first-child { padding-top: 0; }
 
 /* ══ 侧边栏 ══ */
-[data-testid="stSidebar"] {
-    background: #1a1730;
-}
-[data-testid="stSidebar"] > div {
-    padding: 0.75rem 1rem 1.5rem;
-}
-[data-testid="stSidebar"] * { color: #e2dff0 !important; }
+[data-testid="stSidebar"] { background: #191c1f; }
+[data-testid="stSidebar"] > div { padding: 0.75rem 1rem 1.5rem; }
+[data-testid="stSidebar"] * { color: #f4f4f4 !important; }
 
-/* Selectbox */
 [data-testid="stSidebar"] [data-testid="stSelectbox"] > div > div {
-    background: #12102a !important;
-    border: 1px solid #2a2445 !important;
-    border-radius: 10px !important;
-    color: #f0eefa !important;
+    background: #2a2d30 !important;
+    border: 1px solid #3d4145 !important;
+    border-radius: 9999px !important;
+    color: #ffffff !important;
     font-weight: 600;
     font-size: 0.95rem;
 }
 [data-testid="stSidebar"] [data-testid="stSelectbox"] label { display: none !important; }
 
-/* Text input */
 [data-testid="stSidebar"] [data-testid="stTextInput"] input {
-    background: #12102a !important;
-    border: 1px solid #2a2445 !important;
-    border-radius: 10px !important;
-    color: #f0eefa !important;
+    background: #2a2d30 !important;
+    border: 1px solid #3d4145 !important;
+    border-radius: 9999px !important;
+    color: #ffffff !important;
     font-weight: 600;
     font-size: 0.95rem;
 }
 [data-testid="stSidebar"] [data-testid="stTextInput"] label { display: none !important; }
 
-/* Caption/info/success/error text */
 [data-testid="stSidebar"] small,
 [data-testid="stSidebar"] [data-testid="stCaptionContainer"] p {
-    color: #6b6080 !important;
+    color: #8d969e !important;
     font-size: 0.72rem !important;
 }
 
-/* Info/success/warning boxes */
 [data-testid="stSidebar"] [data-testid="stAlert"] {
-    background: #12102a !important;
-    border: 1px solid #2a2445 !important;
-    border-radius: 10px !important;
+    background: #2a2d30 !important;
+    border: 1px solid #3d4145 !important;
+    border-radius: 12px !important;
     font-size: 0.8rem !important;
 }
 
-/* Default buttons */
 [data-testid="stSidebar"] .stButton > button {
-    background: #12102a;
-    border: 1px solid #2a2445;
-    color: #c8c0e8 !important;
+    background: rgba(244,244,244,0.08);
+    border: 2px solid rgba(244,244,244,0.3);
+    color: #f4f4f4 !important;
     font-weight: 500;
     font-size: 0.85rem;
-    border-radius: 10px;
+    border-radius: 9999px;
     letter-spacing: 0.01em;
-    padding: 0.45rem 1rem;
+    padding: 0.5rem 1rem;
     transition: all 0.15s ease;
 }
 [data-testid="stSidebar"] .stButton > button:hover {
-    background: #2a2445;
-    border-color: #5047a0;
-    color: #f0eefa !important;
+    background: rgba(244,244,244,0.16);
+    border-color: rgba(244,244,244,0.5);
 }
 
-/* Primary button */
 [data-testid="stSidebar"] .stButton > button[kind="primary"] {
-    background: #6c5ce7;
-    border: none;
+    background: #191c1f;
+    border: 2px solid #f4f4f4;
     color: #ffffff !important;
-    font-weight: 700;
-    border-radius: 10px;
+    font-weight: 600;
+    border-radius: 9999px;
 }
-[data-testid="stSidebar"] .stButton > button[kind="primary"]:hover {
-    background: #5a4dd6;
-}
+[data-testid="stSidebar"] .stButton > button[kind="primary"]:hover { opacity: 0.85; }
 
-/* Progress bar */
-[data-testid="stSidebar"] [data-testid="stProgressBar"] > div {
-    background: #6c5ce7 !important;
-}
-
-/* Hide default Streamlit hr in sidebar */
+[data-testid="stSidebar"] [data-testid="stProgressBar"] > div { background: #494fdf !important; }
 [data-testid="stSidebar"] hr { display: none !important; }
 
-/* ══ 标题系统 ══ */
+/* ══ 标题 ══ */
 h1 {
     font-size: 2.4rem !important;
     font-weight: 800 !important;
-    color: #12102a !important;
+    color: #191c1f !important;
     letter-spacing: -0.03em !important;
     line-height: 1.15 !important;
     margin-bottom: 0.3rem !important;
@@ -413,31 +391,24 @@ h1 {
 h2 {
     font-size: 1.15rem !important;
     font-weight: 600 !important;
-    color: #12102a !important;
+    color: #191c1f !important;
     letter-spacing: 0.01em !important;
     margin-top: 0.3rem !important;
 }
-h3 {
-    font-size: 1rem !important;
-    font-weight: 600 !important;
-    color: #12102a !important;
-}
+h3 { font-size: 1rem !important; font-weight: 600 !important; color: #191c1f !important; }
 
-/* ══ Top nav 背景条 ══ */
+/* ══ Top nav ══ */
 .nav-bar {
-    background: #1a1730;
-    border-radius: 16px;
+    background: #191c1f;
+    border-radius: 12px;
     padding: 0.5rem 1rem;
     margin-bottom: 1.5rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
 }
 
-/* ══ Landing 页 ══ */
+/* ══ Landing Hero ══ */
 .hero-section {
-    background: #1a1730;
-    border-radius: 24px;
+    background: #191c1f;
+    border-radius: 20px;
     padding: 4rem 3.5rem;
     margin-bottom: 1.5rem;
     position: relative;
@@ -448,35 +419,36 @@ h3 {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.14em;
-    color: #a29bfe;
+    color: #8d969e;
     margin-bottom: 1rem;
 }
 .hero-title {
     font-size: 3.4rem;
-    font-weight: 800;
+    font-weight: 500;
     color: #ffffff;
     letter-spacing: -0.04em;
     line-height: 1.08;
     margin-bottom: 1.25rem;
     max-width: 600px;
 }
-.hero-title span { color: #a29bfe; }
+.hero-title span { color: #494fdf; }
 .hero-sub {
     font-size: 1.05rem;
-    color: #9b8ec4;
+    color: #8d969e;
     line-height: 1.65;
     max-width: 520px;
     margin-bottom: 2rem;
+    letter-spacing: 0.24px;
 }
 .hero-btn {
     display: inline-block;
-    background: #6c5ce7;
-    color: #ffffff;
+    background: #ffffff;
+    color: #191c1f;
     font-size: 0.95rem;
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 0.01em;
-    padding: 0.8rem 2rem;
-    border-radius: 50px;
+    padding: 14px 32px;
+    border-radius: 9999px;
     text-decoration: none;
     cursor: pointer;
     border: none;
@@ -484,121 +456,123 @@ h3 {
 }
 .hero-btn-outline {
     display: inline-block;
-    background: transparent;
-    color: #a29bfe;
+    background: rgba(244,244,244,0.1);
+    color: #f4f4f4;
     font-size: 0.95rem;
     font-weight: 600;
-    padding: 0.8rem 2rem;
-    border-radius: 50px;
-    border: 1.5px solid #3d3660;
+    padding: 14px 32px;
+    border-radius: 9999px;
+    border: 2px solid rgba(244,244,244,0.4);
     cursor: pointer;
 }
 
 /* ══ Landing 功能卡 ══ */
 .lp-card-light {
-    background: #eae7f8;
+    background: #ffffff;
     border-radius: 20px;
     padding: 2rem 2rem 1.5rem;
     height: 100%;
+    border: 1px solid #c9c9cd;
 }
 .lp-card-dark {
-    background: #1a1730;
+    background: #191c1f;
     border-radius: 20px;
     padding: 2rem 2rem 1.5rem;
     height: 100%;
 }
 .lp-card-white {
-    background: #ffffff;
+    background: #f4f4f4;
     border-radius: 20px;
     padding: 2rem 2rem 1.5rem;
     height: 100%;
-    border: 1px solid #e4e0f0;
 }
 .lp-tag {
     display: inline-block;
-    background: rgba(108,92,231,0.15);
-    color: #6c5ce7;
+    background: rgba(73,79,223,0.12);
+    color: #494fdf;
     font-size: 0.72rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.1em;
     padding: 0.25rem 0.75rem;
-    border-radius: 50px;
+    border-radius: 9999px;
     margin-bottom: 1rem;
 }
 .lp-tag-dark {
     display: inline-block;
-    background: rgba(162,155,254,0.15);
-    color: #a29bfe;
+    background: rgba(244,244,244,0.1);
+    color: #f4f4f4;
     font-size: 0.72rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.1em;
     padding: 0.25rem 0.75rem;
-    border-radius: 50px;
+    border-radius: 9999px;
     margin-bottom: 1rem;
 }
 .lp-title {
     font-size: 1.5rem;
-    font-weight: 800;
-    color: #12102a;
+    font-weight: 500;
+    color: #191c1f;
     letter-spacing: -0.025em;
     line-height: 1.2;
     margin-bottom: 0.75rem;
 }
 .lp-title-dark {
     font-size: 1.5rem;
-    font-weight: 800;
-    color: #f0eefa;
+    font-weight: 500;
+    color: #ffffff;
     letter-spacing: -0.025em;
     line-height: 1.2;
     margin-bottom: 0.75rem;
 }
 .lp-desc {
     font-size: 0.9rem;
-    color: #4a4266;
+    color: #505a63;
     line-height: 1.65;
+    letter-spacing: 0.24px;
 }
 .lp-desc-dark {
     font-size: 0.9rem;
-    color: #9b8ec4;
+    color: #8d969e;
     line-height: 1.65;
+    letter-spacing: 0.24px;
 }
 
 /* ══ 数据来源 badge strip ══ */
 .source-strip {
     background: #ffffff;
-    border-radius: 14px;
+    border-radius: 12px;
     padding: 1.1rem 2rem;
     display: flex;
     align-items: center;
     gap: 2rem;
     margin-top: 1.5rem;
-    border: 1px solid #e4e0f0;
+    border: 1px solid #c9c9cd;
     flex-wrap: wrap;
 }
 .source-label {
     font-size: 0.72rem;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: #9b8ec4;
+    color: #8d969e;
     font-weight: 700;
     white-space: nowrap;
 }
 .source-badge {
-    background: #f0eff6;
-    border: 1px solid #e4e0f0;
-    border-radius: 8px;
+    background: #f4f4f4;
+    border: 1px solid #c9c9cd;
+    border-radius: 9999px;
     padding: 0.35rem 1rem;
     font-size: 0.85rem;
-    font-weight: 700;
-    color: #12102a;
+    font-weight: 600;
+    color: #191c1f;
     white-space: nowrap;
 }
 
 /* ══ 行情 Hero 卡 ══ */
 .quote-hero {
-    background: #1a1730;
+    background: #191c1f;
     border-radius: 20px;
     padding: 1.75rem 2rem;
     margin-bottom: 1.5rem;
@@ -616,7 +590,7 @@ h3 {
 }
 .quote-exchange {
     font-size: 0.7rem;
-    color: #7a708e;
+    color: #8d969e;
     text-transform: uppercase;
     letter-spacing: 0.1em;
     margin-top: 0.2rem;
@@ -628,9 +602,9 @@ h3 {
     letter-spacing: -0.02em;
     line-height: 1;
 }
-.quote-change-pos { color: #00e5a0; font-weight: 600; font-size: 0.9rem; margin-top: 0.2rem; }
-.quote-change-neg { color: #ff6b6b; font-weight: 600; font-size: 0.9rem; margin-top: 0.2rem; }
-.quote-meta { color: #7a708e; font-size: 0.72rem; margin-top: 0.15rem; }
+.quote-change-pos { color: #00a87e; font-weight: 600; font-size: 0.9rem; margin-top: 0.2rem; }
+.quote-change-neg { color: #e23b4a; font-weight: 600; font-size: 0.9rem; margin-top: 0.2rem; }
+.quote-meta { color: #8d969e; font-size: 0.72rem; margin-top: 0.15rem; }
 .quote-divider {
     width: 1px;
     height: 40px;
@@ -646,34 +620,32 @@ h3 {
     flex-shrink: 0;
 }
 .quote-pill-label {
-    color: #7a708e;
+    color: #8d969e;
     font-size: 0.65rem;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     margin-bottom: 0.15rem;
 }
-.quote-pill-value { color: #f0eefa; font-size: 0.95rem; font-weight: 700; }
+.quote-pill-value { color: #ffffff; font-size: 0.95rem; font-weight: 700; }
 
-/* ══ Bento 功能卡片 ══ */
+/* ══ Bento 卡片 ══ */
 .bento-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    grid-template-rows: auto auto;
     gap: 1rem;
     margin-bottom: 1.5rem;
 }
-/* 浅色卡：白色偏紫调 */
 .bento-card-light {
-    background: #eae7f8;
-    border-radius: 18px;
+    background: #ffffff;
+    border-radius: 20px;
     padding: 1.6rem 1.75rem;
     position: relative;
     overflow: hidden;
+    border: 1px solid #c9c9cd;
 }
-/* 深色卡：深紫近黑 */
 .bento-card-dark {
-    background: #1a1730;
-    border-radius: 18px;
+    background: #191c1f;
+    border-radius: 20px;
     padding: 1.6rem 1.75rem;
     position: relative;
     overflow: hidden;
@@ -683,7 +655,7 @@ h3 {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: #9b8ec4;
+    color: #8d969e;
     margin-bottom: 0.6rem;
 }
 .bento-label-dark {
@@ -691,57 +663,59 @@ h3 {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: #6c5ce7;
+    color: #494fdf;
     margin-bottom: 0.6rem;
 }
 .bento-title {
     font-size: 1.25rem;
-    font-weight: 800;
-    color: #12102a;
+    font-weight: 500;
+    color: #191c1f;
     line-height: 1.25;
     letter-spacing: -0.02em;
     margin-bottom: 0.75rem;
 }
 .bento-title-dark {
     font-size: 1.25rem;
-    font-weight: 800;
-    color: #f0eefa;
+    font-weight: 500;
+    color: #ffffff;
     line-height: 1.25;
     letter-spacing: -0.02em;
     margin-bottom: 0.75rem;
 }
 .bento-desc {
     font-size: 0.92rem;
-    color: #4a4266;
+    color: #505a63;
     line-height: 1.65;
+    letter-spacing: 0.24px;
 }
 .bento-desc-dark {
     font-size: 0.92rem;
-    color: #9b8ec4;
+    color: #8d969e;
     line-height: 1.65;
+    letter-spacing: 0.24px;
 }
 
-/* ══ 数据统计行 ══ */
+/* ══ 数据统计条 ══ */
 .stat-strip {
     background: #ffffff;
-    border-radius: 14px;
+    border-radius: 12px;
     padding: 1.1rem 1.5rem;
     display: flex;
     gap: 2.5rem;
     margin-bottom: 1.5rem;
-    border: 1px solid #e4e0f0;
+    border: 1px solid #c9c9cd;
 }
 .stat-item-label {
     font-size: 0.68rem;
     text-transform: uppercase;
     letter-spacing: 0.09em;
-    color: #9b8ec4;
+    color: #8d969e;
     margin-bottom: 0.2rem;
 }
 .stat-item-value {
     font-size: 1.3rem;
     font-weight: 800;
-    color: #12102a;
+    color: #191c1f;
     letter-spacing: -0.02em;
 }
 
@@ -751,7 +725,7 @@ h3 {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.12em;
-    color: #9b8ec4;
+    color: #8d969e;
     margin-bottom: 0.8rem;
     margin-top: 0.25rem;
 }
@@ -759,21 +733,21 @@ h3 {
 /* ══ 图表容器 ══ */
 .chart-card {
     background: #ffffff;
-    border-radius: 18px;
+    border-radius: 20px;
     padding: 1.5rem 1.5rem 0.5rem;
     margin-bottom: 1rem;
-    border: 1px solid #e4e0f0;
+    border: 1px solid #c9c9cd;
 }
 
 /* ══ 报告列表 ══ */
 .report-block {
     background: #ffffff;
-    border-radius: 14px;
+    border-radius: 12px;
     padding: 1rem 1.4rem;
-    border: 1px solid #e4e0f0;
+    border: 1px solid #c9c9cd;
 }
 .report-row {
-    border-bottom: 1px solid #f0ecfa;
+    border-bottom: 1px solid #f4f4f4;
     padding: 0.6rem 0;
     display: flex;
     align-items: center;
@@ -781,64 +755,64 @@ h3 {
 }
 .report-row:last-child { border-bottom: none; }
 .report-id {
-    background: #eae7f8;
-    color: #6c5ce7;
+    background: #f4f4f4;
+    color: #494fdf;
     font-weight: 700;
     font-size: 0.72rem;
-    border-radius: 6px;
-    padding: 0.15rem 0.5rem;
+    border-radius: 9999px;
+    padding: 0.15rem 0.6rem;
     white-space: nowrap;
 }
-.report-question { color: #12102a; font-size: 0.92rem; flex: 1; line-height: 1.4; }
-.report-time { color: #9b8ec4; font-size: 0.78rem; white-space: nowrap; }
+.report-question { color: #191c1f; font-size: 0.92rem; flex: 1; line-height: 1.4; }
+.report-time { color: #8d969e; font-size: 0.78rem; white-space: nowrap; }
 
 /* ══ 竞品洞察 ══ */
 .insight-row {
     font-size: 0.83rem;
-    color: #12102a;
+    color: #191c1f;
     padding: 0.4rem 0;
-    border-bottom: 1px solid #f0ecfa;
+    border-bottom: 1px solid #f4f4f4;
     line-height: 1.5;
+    letter-spacing: 0.24px;
 }
 .insight-row:last-child { border-bottom: none; }
 
-/* ══ Metric 覆盖 ══ */
+/* ══ Metric ══ */
 [data-testid="stMetricValue"] {
     font-size: 1.35rem !important;
     font-weight: 800 !important;
-    color: #12102a !important;
+    color: #191c1f !important;
     letter-spacing: -0.02em !important;
 }
 [data-testid="stMetricLabel"] {
     font-size: 0.68rem !important;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    color: #9b8ec4 !important;
+    color: #8d969e !important;
 }
 [data-testid="stMetricDelta"] { font-size: 0.8rem !important; }
 
 /* ══ Divider ══ */
-hr { border-color: #e4e0f0 !important; margin: 1.25rem 0 !important; }
+hr { border-color: #c9c9cd !important; margin: 1.25rem 0 !important; }
 
-/* ══ 主按钮 ══ */
+/* ══ 按钮 ══ */
 .stButton > button[kind="primary"] {
-    background: #1a1730;
+    background: #191c1f;
+    color: #ffffff !important;
     border: none;
-    border-radius: 50px;
+    border-radius: 9999px;
     font-weight: 600;
     letter-spacing: 0.01em;
-    padding: 0.55rem 1.5rem;
+    padding: 14px 32px;
 }
-.stButton > button[kind="primary"]:hover { background: #2d2850; }
-.stButton > button {
-    border-radius: 10px;
-}
+.stButton > button[kind="primary"]:hover { opacity: 0.85; }
+.stButton > button { border-radius: 9999px; }
 
 /* ══ Expander ══ */
 [data-testid="stExpander"] {
     background: #ffffff;
-    border: 1px solid #e4e0f0 !important;
-    border-radius: 14px !important;
+    border: 1px solid #c9c9cd !important;
+    border-radius: 12px !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -849,19 +823,19 @@ with st.sidebar:
     # Brand
     st.markdown("""
     <div style="padding:1rem 0 0.25rem">
-        <div style="font-size:1.3rem;font-weight:800;color:#f0eefa;letter-spacing:-0.03em;line-height:1">
+        <div style="font-size:1.3rem;font-weight:800;color:#ffffff;letter-spacing:-0.03em;line-height:1">
             InvestIQ
         </div>
-        <div style="font-size:0.68rem;color:#6b6080;text-transform:uppercase;letter-spacing:0.14em;margin-top:0.3rem">
+        <div style="font-size:0.68rem;color:#8d969e;text-transform:uppercase;letter-spacing:0.14em;margin-top:0.3rem">
             AI 投资研究平台
         </div>
     </div>
     """, unsafe_allow_html=True)
 
-    st.markdown('<div style="height:1px;background:#2a2445;margin:0.75rem 0"></div>', unsafe_allow_html=True)
+    st.markdown('<div style="height:1px;background:#3d4145;margin:0.75rem 0"></div>', unsafe_allow_html=True)
 
     # ── 标的选择 ──
-    st.markdown('<div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#6b6080;margin-bottom:0.4rem">分析标的</div>', unsafe_allow_html=True)
+    st.markdown('<div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#8d969e;margin-bottom:0.4rem">分析标的</div>', unsafe_allow_html=True)
     _PRESET_TICKERS = ["NVDA", "AMD", "INTC", "MSFT", "TSLA", "META", "AAPL", "GOOGL", "AMZN", "自定义..."]
     _ticker_choice = st.selectbox("分析标的", _PRESET_TICKERS, index=0, label_visibility="collapsed")
     if _ticker_choice == "自定义...":
@@ -875,20 +849,20 @@ with st.sidebar:
     if _sb_mkt and _sb_mkt.get("price"):
         _p = _sb_mkt["price"]
         _chg = _sb_mkt.get("day_change_pct") or 0
-        _chg_color = "#00e5a0" if _chg >= 0 else "#ff6b6b"
+        _chg_color = "#00a87e" if _chg >= 0 else "#e23b4a"
         _arrow = "▲" if _chg >= 0 else "▼"
         st.markdown(f"""
-        <div style="background:#12102a;border-radius:12px;padding:0.85rem 1rem;margin:0.5rem 0 0">
-            <div style="font-size:1.4rem;font-weight:800;color:#f0eefa;letter-spacing:-0.02em;line-height:1">${_p:,.2f}</div>
+        <div style="background:#2a2d30;border-radius:12px;padding:0.85rem 1rem;margin:0.5rem 0 0">
+            <div style="font-size:1.4rem;font-weight:800;color:#ffffff;letter-spacing:-0.02em;line-height:1">${_p:,.2f}</div>
             <div style="font-size:0.78rem;font-weight:600;color:{_chg_color};margin-top:0.2rem">{_arrow} {abs(_chg):.2f}% 今日</div>
-            <div style="font-size:0.68rem;color:#6b6080;margin-top:0.3rem;letter-spacing:0.04em">Yahoo Finance · 5min 缓存</div>
+            <div style="font-size:0.68rem;color:#8d969e;margin-top:0.3rem;letter-spacing:0.04em">Yahoo Finance · 5min 缓存</div>
         </div>
         """, unsafe_allow_html=True)
 
-    st.markdown('<div style="height:1px;background:#2a2445;margin:1rem 0"></div>', unsafe_allow_html=True)
+    st.markdown('<div style="height:1px;background:#3d4145;margin:1rem 0"></div>', unsafe_allow_html=True)
 
     # ── 数据更新 ──
-    st.markdown('<div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#6b6080;margin-bottom:0.6rem">数据更新</div>', unsafe_allow_html=True)
+    st.markdown('<div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#8d969e;margin-bottom:0.6rem">数据更新</div>', unsafe_allow_html=True)
 
     if st.button("刷新新闻", use_container_width=True):
         with st.spinner("拉取最新新闻..."):
@@ -934,7 +908,7 @@ with st.sidebar:
         except Exception as e:
             st.error(f"失败：{e}")
 
-    st.markdown('<div style="height:1px;background:#2a2445;margin:1rem 0"></div>', unsafe_allow_html=True)
+    st.markdown('<div style="height:1px;background:#3d4145;margin:1rem 0"></div>', unsafe_allow_html=True)
 
     if st.button("初始化新标的", use_container_width=True):
         st.session_state._setup_done = False
@@ -943,7 +917,7 @@ with st.sidebar:
     # 底部数据来源说明
     st.markdown("""
     <div style="margin-top:auto;padding-top:1.5rem">
-        <div style="font-size:0.65rem;color:#4a4060;line-height:1.7;letter-spacing:0.03em">
+        <div style="font-size:0.65rem;color:#8d969e;line-height:1.7;letter-spacing:0.03em">
             数据来源<br>
             SEC EDGAR · Yahoo Finance<br>
             NewsAPI · Chroma · PostgreSQL
@@ -967,22 +941,22 @@ if _HAS_OPTION_MENU:
         styles={
             "container": {
                 "padding": "0.4rem 0.75rem",
-                "background-color": "#1a1730",
-                "border-radius": "16px",
+                "background-color": "#191c1f",
+                "border-radius": "12px",
                 "margin-bottom": "1.5rem",
             },
-            "icon": {"color": "#a29bfe", "font-size": "1rem"},
+            "icon": {"color": "#8d969e", "font-size": "1rem"},
             "nav-link": {
                 "font-size": "0.9rem",
                 "font-weight": "600",
-                "color": "#9b8ec4",
+                "color": "#8d969e",
                 "padding": "0.5rem 1rem",
-                "border-radius": "10px",
+                "border-radius": "9999px",
                 "letter-spacing": "0.01em",
             },
             "nav-link-selected": {
-                "background-color": "#2d2850",
-                "color": "#f0eefa",
+                "background-color": "#2a2d30",
+                "color": "#ffffff",
             },
             "menu-title": {"display": "none"},
         },
@@ -996,7 +970,7 @@ else:
         flex-direction: row; gap: 0.5rem;
     }
     div[data-testid="stHorizontalBlock"] [data-testid="stRadio"] label {
-        background: #1a1730; color: #9b8ec4 !important;
+        background: #191c1f; color: #8d969e !important;
         border-radius: 10px; padding: 0.45rem 1rem;
         font-size: 0.9rem; font-weight: 600; cursor: pointer;
     }
@@ -1230,11 +1204,11 @@ elif page == "市场概览":
                 margins.append(d.get("gross_margin"))
                 yoy_growths.append(d.get("revenue_growth_yoy"))
 
-        _NAVY = "#12102a"
-        _BLUE = "#6c5ce7"
-        _TEAL = "#00e5a0"
-        _GOLD = "#f0b429"
-        _GRID = "rgba(18,16,42,0.06)"
+        _NAVY = "#191c1f"
+        _BLUE = "#494fdf"
+        _TEAL = "#00a87e"
+        _GOLD = "#ec7e00"
+        _GRID = "rgba(25,28,31,0.06)"
 
         fig = make_subplots(
             rows=2, cols=1,
@@ -1283,7 +1257,7 @@ elif page == "市场概览":
         )
         fig.update_xaxes(showgrid=False, tickfont=dict(size=11), linecolor=_GRID)
         fig.update_yaxes(showgrid=True, gridcolor=_GRID, tickfont=dict(size=11), zeroline=False)
-        fig.update_annotations(font_size=11, font_color="#8899bb")
+        fig.update_annotations(font_size=11, font_color="#8d969e")
         st.plotly_chart(fig, use_container_width=True)
         c1, c2, c3 = st.columns(3)
         c1.metric("最新季度营收", f"${revenues[-1]}B",
@@ -1344,7 +1318,7 @@ elif page == "市场概览":
         nm_norm  = normalize(net_margins)
 
         categories = ["营收规模", "毛利率", "净利率"]
-        _COMP_COLORS = ["#6c5ce7", "#f0b429", "#a29bfe"]
+        _COMP_COLORS = ["#494fdf", "#ec7e00", "#00a87e"]
 
         fig2 = go.Figure()
         for i, comp_ticker in enumerate(tickers):
@@ -1372,13 +1346,13 @@ elif page == "市场概览":
                 bgcolor="rgba(0,0,0,0)",
                 radialaxis=dict(
                     visible=True, range=[0, 100], showticklabels=False,
-                    gridcolor="rgba(15,23,41,0.08)", linecolor="rgba(15,23,41,0.08)"
+                    gridcolor="rgba(25,28,31,0.08)", linecolor="rgba(25,28,31,0.08)"
                 ),
-                angularaxis=dict(tickfont=dict(size=12, color="#0f1729"), linecolor="rgba(15,23,41,0.1)")
+                angularaxis=dict(tickfont=dict(size=12, color="#191c1f"), linecolor="rgba(25,28,31,0.1)")
             ),
             legend=dict(
                 orientation="h", yanchor="bottom", y=-0.18, xanchor="center", x=0.5,
-                font=dict(size=11, color="#0f1729"), bgcolor="rgba(0,0,0,0)"
+                font=dict(size=11, color="#191c1f"), bgcolor="rgba(0,0,0,0)"
             ),
             height=360,
             margin=dict(l=40, r=40, t=10, b=40),
@@ -1902,15 +1876,15 @@ elif page == "新闻情报":
                     st.markdown("**情绪分布**")
                     st.markdown(
                         f"""
-                        <div style="display:flex;height:12px;border-radius:6px;overflow:hidden;margin:4px 0 16px">
-                            <div style="width:{bull}%;background:#10b981"></div>
-                            <div style="width:{neutral}%;background:#94a3b8"></div>
-                            <div style="width:{bear}%;background:#ef4444"></div>
+                        <div style="display:flex;height:10px;border-radius:9999px;overflow:hidden;margin:4px 0 16px">
+                            <div style="width:{bull}%;background:#00a87e"></div>
+                            <div style="width:{neutral}%;background:#c9c9cd"></div>
+                            <div style="width:{bear}%;background:#e23b4a"></div>
                         </div>
-                        <div style="display:flex;gap:16px;font-size:12px;color:gray">
-                            <span>🟢 看多 {bull}%</span>
-                            <span>⚪ 中性 {neutral}%</span>
-                            <span>🔴 看空 {bear}%</span>
+                        <div style="display:flex;gap:16px;font-size:12px;color:#505a63">
+                            <span style="color:#00a87e;font-weight:600">看多 {bull}%</span>
+                            <span style="color:#8d969e">中性 {neutral}%</span>
+                            <span style="color:#e23b4a;font-weight:600">看空 {bear}%</span>
                         </div>
                         """,
                         unsafe_allow_html=True
