@@ -259,6 +259,7 @@ from agent.research_agent import (
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from sqlalchemy import create_engine, text
+from streamlit_option_menu import option_menu
 
 
 @st.cache_data(ttl=300)
@@ -291,232 +292,536 @@ engine = create_engine(
 # ── 样式 ──
 st.markdown("""
 <style>
-/* ── 全局字体与间距 ── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+/* ══ 全局 ══ */
 html, body, [class*="css"] {
     font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+    font-size: 16px;
+}
+p, li, span, div { font-size: 1rem; }
+.stApp {
+    background: #f0eff6;
+}
+.block-container {
+    padding-top: 1rem;
+    padding-bottom: 3rem;
+    max-width: 1200px;
+}
+/* 隐藏 Streamlit 默认顶部留白，给 option-menu 腾空间 */
+[data-testid="stAppViewContainer"] > section > div:first-child {
+    padding-top: 0;
 }
 
-/* ── 侧边栏 ── */
+/* ══ 侧边栏 ══ */
 [data-testid="stSidebar"] {
-    background: #0f1729;
+    background: #1a1730;
 }
-[data-testid="stSidebar"] * {
-    color: #e8edf5 !important;
-}
+[data-testid="stSidebar"] * { color: #e2dff0 !important; }
 [data-testid="stSidebar"] .stRadio label {
     font-size: 0.88rem;
-    letter-spacing: 0.02em;
-    color: #f0f4fa !important;
+    letter-spacing: 0.01em;
+    color: #e2dff0 !important;
+    padding: 0.2rem 0;
 }
-/* 标的选择框的值和按钮文字加亮 */
 [data-testid="stSidebar"] [data-testid="stSelectbox"] > div > div {
     color: #ffffff !important;
     font-weight: 600;
 }
 [data-testid="stSidebar"] [data-testid="stSelectbox"] label,
 [data-testid="stSidebar"] [data-testid="stTextInput"] label {
-    font-size: 0.78rem;
+    font-size: 0.72rem;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: #8899bb !important;
+    letter-spacing: 0.09em;
+    color: #7a708e !important;
 }
-/* 数据来源 caption */
 [data-testid="stSidebar"] [data-testid="stCaptionContainer"] p {
-    color: #8899bb !important;
-    font-size: 0.75rem;
+    color: #7a708e !important;
+    font-size: 0.74rem;
 }
-/* section 小标题 */
 [data-testid="stSidebar"] h3,
 [data-testid="stSidebar"] [data-testid="stHeading"] {
     color: #ffffff !important;
-    font-size: 0.8rem !important;
+    font-size: 0.75rem !important;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.1em;
 }
-/* 侧边栏按钮 */
 [data-testid="stSidebar"] .stButton > button {
-    background: #1a2540;
-    border: 1px solid #2a3a5c;
-    color: #e8edf5 !important;
+    background: #2a2545;
+    border: 1px solid #3d3660;
+    color: #e2dff0 !important;
     font-weight: 500;
-    font-size: 0.85rem;
+    font-size: 0.84rem;
+    border-radius: 10px;
 }
 [data-testid="stSidebar"] .stButton > button:hover {
-    background: #243050;
-    border-color: #3a4e78;
+    background: #352f58;
+    border-color: #5047a0;
     color: #ffffff !important;
 }
 [data-testid="stSidebar"] .stButton > button[kind="primary"] {
-    background: #0052cc;
+    background: #6c5ce7;
     border: none;
     color: #ffffff !important;
     font-weight: 600;
+    border-radius: 10px;
 }
 [data-testid="stSidebar"] .stButton > button[kind="primary"]:hover {
-    background: #0047b3;
+    background: #5a4dd6;
 }
 
-/* ── 主内容区 ── */
-.block-container {
-    padding-top: 1.5rem;
-    padding-bottom: 2rem;
-    max-width: 1200px;
-}
-
-/* ── 页面标题 ── */
+/* ══ 标题系统 ══ */
 h1 {
-    font-size: 1.6rem !important;
-    font-weight: 700 !important;
-    color: #0f1729 !important;
-    letter-spacing: -0.02em;
-    margin-bottom: 0 !important;
+    font-size: 2.4rem !important;
+    font-weight: 800 !important;
+    color: #12102a !important;
+    letter-spacing: -0.03em !important;
+    line-height: 1.15 !important;
+    margin-bottom: 0.3rem !important;
 }
 h2 {
-    font-size: 1.05rem !important;
+    font-size: 1.15rem !important;
     font-weight: 600 !important;
-    color: #1e3a5f !important;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    margin-top: 0.5rem !important;
+    color: #12102a !important;
+    letter-spacing: 0.01em !important;
+    margin-top: 0.3rem !important;
 }
 h3 {
-    font-size: 0.95rem !important;
+    font-size: 1rem !important;
     font-weight: 600 !important;
-    color: #0f1729 !important;
+    color: #12102a !important;
 }
 
-/* ── 行情 Header 条 ── */
-.quote-header {
-    background: #0f1729;
-    border-radius: 8px;
-    padding: 1rem 1.5rem;
+/* ══ Top nav 背景条 ══ */
+.nav-bar {
+    background: #1a1730;
+    border-radius: 16px;
+    padding: 0.5rem 1rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* ══ Landing 页 ══ */
+.hero-section {
+    background: #1a1730;
+    border-radius: 24px;
+    padding: 4rem 3.5rem;
+    margin-bottom: 1.5rem;
+    position: relative;
+    overflow: hidden;
+}
+.hero-eyebrow {
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: #a29bfe;
+    margin-bottom: 1rem;
+}
+.hero-title {
+    font-size: 3.4rem;
+    font-weight: 800;
+    color: #ffffff;
+    letter-spacing: -0.04em;
+    line-height: 1.08;
     margin-bottom: 1.25rem;
+    max-width: 600px;
+}
+.hero-title span { color: #a29bfe; }
+.hero-sub {
+    font-size: 1.05rem;
+    color: #9b8ec4;
+    line-height: 1.65;
+    max-width: 520px;
+    margin-bottom: 2rem;
+}
+.hero-btn {
+    display: inline-block;
+    background: #6c5ce7;
+    color: #ffffff;
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    padding: 0.8rem 2rem;
+    border-radius: 50px;
+    text-decoration: none;
+    cursor: pointer;
+    border: none;
+    margin-right: 0.75rem;
+}
+.hero-btn-outline {
+    display: inline-block;
+    background: transparent;
+    color: #a29bfe;
+    font-size: 0.95rem;
+    font-weight: 600;
+    padding: 0.8rem 2rem;
+    border-radius: 50px;
+    border: 1.5px solid #3d3660;
+    cursor: pointer;
+}
+
+/* ══ Landing 功能卡 ══ */
+.lp-card-light {
+    background: #eae7f8;
+    border-radius: 20px;
+    padding: 2rem 2rem 1.5rem;
+    height: 100%;
+}
+.lp-card-dark {
+    background: #1a1730;
+    border-radius: 20px;
+    padding: 2rem 2rem 1.5rem;
+    height: 100%;
+}
+.lp-card-white {
+    background: #ffffff;
+    border-radius: 20px;
+    padding: 2rem 2rem 1.5rem;
+    height: 100%;
+    border: 1px solid #e4e0f0;
+}
+.lp-tag {
+    display: inline-block;
+    background: rgba(108,92,231,0.15);
+    color: #6c5ce7;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 0.25rem 0.75rem;
+    border-radius: 50px;
+    margin-bottom: 1rem;
+}
+.lp-tag-dark {
+    display: inline-block;
+    background: rgba(162,155,254,0.15);
+    color: #a29bfe;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 0.25rem 0.75rem;
+    border-radius: 50px;
+    margin-bottom: 1rem;
+}
+.lp-title {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #12102a;
+    letter-spacing: -0.025em;
+    line-height: 1.2;
+    margin-bottom: 0.75rem;
+}
+.lp-title-dark {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #f0eefa;
+    letter-spacing: -0.025em;
+    line-height: 1.2;
+    margin-bottom: 0.75rem;
+}
+.lp-desc {
+    font-size: 0.9rem;
+    color: #4a4266;
+    line-height: 1.65;
+}
+.lp-desc-dark {
+    font-size: 0.9rem;
+    color: #9b8ec4;
+    line-height: 1.65;
+}
+
+/* ══ 数据来源 badge strip ══ */
+.source-strip {
+    background: #ffffff;
+    border-radius: 14px;
+    padding: 1.1rem 2rem;
     display: flex;
     align-items: center;
     gap: 2rem;
+    margin-top: 1.5rem;
+    border: 1px solid #e4e0f0;
+    flex-wrap: wrap;
+}
+.source-label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #9b8ec4;
+    font-weight: 700;
+    white-space: nowrap;
+}
+.source-badge {
+    background: #f0eff6;
+    border: 1px solid #e4e0f0;
+    border-radius: 8px;
+    padding: 0.35rem 1rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #12102a;
+    white-space: nowrap;
+}
+
+/* ══ 行情 Hero 卡 ══ */
+.quote-hero {
+    background: #1a1730;
+    border-radius: 20px;
+    padding: 1.75rem 2rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 2.5rem;
+    flex-wrap: wrap;
 }
 .quote-ticker {
-    font-size: 1.5rem;
+    font-size: 2rem;
     font-weight: 800;
     color: #ffffff;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.03em;
+    line-height: 1;
+}
+.quote-exchange {
+    font-size: 0.7rem;
+    color: #7a708e;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-top: 0.2rem;
 }
 .quote-price {
-    font-size: 1.5rem;
+    font-size: 2rem;
     font-weight: 700;
     color: #ffffff;
+    letter-spacing: -0.02em;
+    line-height: 1;
 }
-.quote-change-pos { color: #00c48c; font-weight: 600; font-size: 0.95rem; }
-.quote-change-neg { color: #ff5c5c; font-weight: 600; font-size: 0.95rem; }
-.quote-meta { color: #8899bb; font-size: 0.78rem; }
+.quote-change-pos { color: #00e5a0; font-weight: 600; font-size: 0.9rem; margin-top: 0.2rem; }
+.quote-change-neg { color: #ff6b6b; font-weight: 600; font-size: 0.9rem; margin-top: 0.2rem; }
+.quote-meta { color: #7a708e; font-size: 0.72rem; margin-top: 0.15rem; }
+.quote-divider {
+    width: 1px;
+    height: 40px;
+    background: rgba(255,255,255,0.1);
+    flex-shrink: 0;
+}
 .quote-pill {
-    background: #1a2540;
-    border-radius: 6px;
-    padding: 0.4rem 0.9rem;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 0.5rem 1.1rem;
     text-align: center;
+    flex-shrink: 0;
 }
-.quote-pill-label { color: #6b7a99; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; }
-.quote-pill-value { color: #e8edf5; font-size: 0.95rem; font-weight: 600; }
-
-/* ── 功能卡片 ── */
-.feature-card {
-    background: #f8fafd;
-    border: 1px solid #e2e8f0;
-    border-radius: 10px;
-    padding: 1.25rem 1.4rem;
-    height: 100%;
-    border-top: 3px solid #0052cc;
-}
-.feature-card-icon { font-size: 1.4rem; margin-bottom: 0.5rem; }
-.feature-card-title {
-    font-size: 0.9rem;
-    font-weight: 700;
-    color: #0f1729;
-    margin-bottom: 0.3rem;
+.quote-pill-label {
+    color: #7a708e;
+    font-size: 0.65rem;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.08em;
+    margin-bottom: 0.15rem;
 }
-.feature-card-desc { font-size: 0.82rem; color: #4a5568; line-height: 1.55; }
+.quote-pill-value { color: #f0eefa; font-size: 0.95rem; font-weight: 700; }
 
-/* ── 报告列表行 ── */
+/* ══ Bento 功能卡片 ══ */
+.bento-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+/* 浅色卡：白色偏紫调 */
+.bento-card-light {
+    background: #eae7f8;
+    border-radius: 18px;
+    padding: 1.6rem 1.75rem;
+    position: relative;
+    overflow: hidden;
+}
+/* 深色卡：深紫近黑 */
+.bento-card-dark {
+    background: #1a1730;
+    border-radius: 18px;
+    padding: 1.6rem 1.75rem;
+    position: relative;
+    overflow: hidden;
+}
+.bento-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #9b8ec4;
+    margin-bottom: 0.6rem;
+}
+.bento-label-dark {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #6c5ce7;
+    margin-bottom: 0.6rem;
+}
+.bento-title {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: #12102a;
+    line-height: 1.25;
+    letter-spacing: -0.02em;
+    margin-bottom: 0.75rem;
+}
+.bento-title-dark {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: #f0eefa;
+    line-height: 1.25;
+    letter-spacing: -0.02em;
+    margin-bottom: 0.75rem;
+}
+.bento-desc {
+    font-size: 0.92rem;
+    color: #4a4266;
+    line-height: 1.65;
+}
+.bento-desc-dark {
+    font-size: 0.92rem;
+    color: #9b8ec4;
+    line-height: 1.65;
+}
+
+/* ══ 数据统计行 ══ */
+.stat-strip {
+    background: #ffffff;
+    border-radius: 14px;
+    padding: 1.1rem 1.5rem;
+    display: flex;
+    gap: 2.5rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid #e4e0f0;
+}
+.stat-item-label {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    color: #9b8ec4;
+    margin-bottom: 0.2rem;
+}
+.stat-item-value {
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: #12102a;
+    letter-spacing: -0.02em;
+}
+
+/* ══ 区域标题 ══ */
+.section-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #9b8ec4;
+    margin-bottom: 0.8rem;
+    margin-top: 0.25rem;
+}
+
+/* ══ 图表容器 ══ */
+.chart-card {
+    background: #ffffff;
+    border-radius: 18px;
+    padding: 1.5rem 1.5rem 0.5rem;
+    margin-bottom: 1rem;
+    border: 1px solid #e4e0f0;
+}
+
+/* ══ 报告列表 ══ */
+.report-block {
+    background: #ffffff;
+    border-radius: 14px;
+    padding: 1rem 1.4rem;
+    border: 1px solid #e4e0f0;
+}
 .report-row {
-    border-bottom: 1px solid #f0f2f5;
-    padding: 0.65rem 0;
+    border-bottom: 1px solid #f0ecfa;
+    padding: 0.6rem 0;
     display: flex;
     align-items: center;
     gap: 1rem;
 }
 .report-row:last-child { border-bottom: none; }
-.report-id { color: #0052cc; font-weight: 700; font-size: 0.8rem; min-width: 2rem; }
-.report-question { color: #0f1729; font-size: 0.85rem; flex: 1; }
-.report-time { color: #8899bb; font-size: 0.75rem; white-space: nowrap; }
-
-/* ── 区域标题 ── */
-.section-label {
-    font-size: 0.72rem;
+.report-id {
+    background: #eae7f8;
+    color: #6c5ce7;
     font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: #8899bb;
-    border-bottom: 1px solid #e8edf5;
-    padding-bottom: 0.4rem;
-    margin-bottom: 0.75rem;
+    font-size: 0.72rem;
+    border-radius: 6px;
+    padding: 0.15rem 0.5rem;
+    white-space: nowrap;
 }
+.report-question { color: #12102a; font-size: 0.92rem; flex: 1; line-height: 1.4; }
+.report-time { color: #9b8ec4; font-size: 0.78rem; white-space: nowrap; }
 
-/* ── Metric 覆盖 ── */
+/* ══ 竞品洞察 ══ */
+.insight-row {
+    font-size: 0.83rem;
+    color: #12102a;
+    padding: 0.4rem 0;
+    border-bottom: 1px solid #f0ecfa;
+    line-height: 1.5;
+}
+.insight-row:last-child { border-bottom: none; }
+
+/* ══ Metric 覆盖 ══ */
 [data-testid="stMetricValue"] {
-    font-size: 1.3rem !important;
-    font-weight: 700 !important;
-    color: #0f1729 !important;
+    font-size: 1.35rem !important;
+    font-weight: 800 !important;
+    color: #12102a !important;
+    letter-spacing: -0.02em !important;
 }
 [data-testid="stMetricLabel"] {
-    font-size: 0.72rem !important;
+    font-size: 0.68rem !important;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: #8899bb !important;
+    letter-spacing: 0.08em;
+    color: #9b8ec4 !important;
 }
-[data-testid="stMetricDelta"] {
-    font-size: 0.82rem !important;
-}
+[data-testid="stMetricDelta"] { font-size: 0.8rem !important; }
 
-/* ── Divider ── */
-hr {
-    border-color: #e8edf5 !important;
-    margin: 1rem 0 !important;
-}
+/* ══ Divider ══ */
+hr { border-color: #e4e0f0 !important; margin: 1.25rem 0 !important; }
 
-/* ── 按钮 ── */
+/* ══ 主按钮 ══ */
 .stButton > button[kind="primary"] {
-    background: #0052cc;
+    background: #1a1730;
     border: none;
-    border-radius: 6px;
+    border-radius: 50px;
     font-weight: 600;
-    letter-spacing: 0.02em;
+    letter-spacing: 0.01em;
+    padding: 0.55rem 1.5rem;
 }
-.stButton > button[kind="primary"]:hover {
-    background: #0047b3;
+.stButton > button[kind="primary"]:hover { background: #2d2850; }
+.stButton > button {
+    border-radius: 10px;
+}
+
+/* ══ Expander ══ */
+[data-testid="stExpander"] {
+    background: #ffffff;
+    border: 1px solid #e4e0f0 !important;
+    border-radius: 14px !important;
 }
 </style>
 """, unsafe_allow_html=True)
 
 
-# ── 侧边栏 ──
+# ── 侧边栏（仅保留标的选择 + 数据控制）──
 with st.sidebar:
     st.markdown(
-        '<div style="font-size:1.2rem;font-weight:800;color:#ffffff;letter-spacing:-0.02em;'
+        '<div style="font-size:1.25rem;font-weight:800;color:#f0eefa;letter-spacing:-0.02em;'
         'padding:0.5rem 0 0.1rem">InvestIQ</div>'
-        '<div style="font-size:0.72rem;color:#6b7a99;text-transform:uppercase;'
-        'letter-spacing:0.1em;margin-bottom:0.75rem">AI 投资研究平台</div>',
+        '<div style="font-size:0.72rem;color:#7a708e;text-transform:uppercase;'
+        'letter-spacing:0.12em;margin-bottom:0.75rem">AI 投资研究平台</div>',
         unsafe_allow_html=True
     )
-    st.divider()
-
-    page = st.radio(
-    "导航",
-    ["🏠 首页", "📝 生成报告", "📚 历史报告", "📰 新闻概览", "🗃️ 数据管理"],
-    label_visibility="collapsed"
-)
-
     st.divider()
     _PRESET_TICKERS = ["NVDA", "AMD", "INTC", "MSFT", "TSLA", "META", "AAPL", "GOOGL", "AMZN", "其他（自定义）..."]
     _ticker_choice = st.selectbox("分析标的", _PRESET_TICKERS, index=0)
@@ -586,9 +891,119 @@ with st.sidebar:
 
 
 # ════════════════════════════════
-# 首页
+# 顶部导航菜单
 # ════════════════════════════════
-if page == "🏠 首页":
+page = option_menu(
+    menu_title=None,
+    options=["产品介绍", "市场概览", "生成报告", "历史报告", "新闻情报", "数据管理"],
+    icons=["stars", "bar-chart-line", "file-earmark-text", "clock-history", "newspaper", "database"],
+    default_index=0,
+    orientation="horizontal",
+    styles={
+        "container": {
+            "padding": "0.4rem 0.75rem",
+            "background-color": "#1a1730",
+            "border-radius": "16px",
+            "margin-bottom": "1.5rem",
+        },
+        "icon": {"color": "#a29bfe", "font-size": "1rem"},
+        "nav-link": {
+            "font-size": "0.9rem",
+            "font-weight": "600",
+            "color": "#9b8ec4",
+            "padding": "0.5rem 1rem",
+            "border-radius": "10px",
+            "letter-spacing": "0.01em",
+        },
+        "nav-link-selected": {
+            "background-color": "#2d2850",
+            "color": "#f0eefa",
+        },
+        "menu-title": {"display": "none"},
+    },
+    key="top_nav",
+)
+
+
+# ════════════════════════════════
+# 产品介绍（Landing Page）
+# ════════════════════════════════
+if page == "产品介绍":
+    # Hero
+    st.markdown("""
+    <div class="hero-section">
+        <div class="hero-eyebrow">AI · 投资研究平台</div>
+        <div class="hero-title">让每个投资者都拥有<br><span>机构级分析师</span></div>
+        <div class="hero-sub">InvestIQ 将 AI 推理、SEC 财务数据、实时新闻与竞品对比整合为一体，一个问题，即刻生成专业投研报告。</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # 核心功能三栏
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.markdown("""
+        <div class="lp-card-light">
+            <div class="lp-tag">AI 研究报告</div>
+            <div class="lp-title">一问即达，<br>六维分析</div>
+            <div class="lp-desc">输入任意投研问题，AI 自动规划调研路径，整合财报、新闻与竞品数据，输出含宏观背景、基本面、竞品对比、市场情绪、多空论点与交易建议的完整报告。</div>
+        </div>
+        """, unsafe_allow_html=True)
+    with c2:
+        st.markdown("""
+        <div class="lp-card-dark">
+            <div class="lp-tag-dark">深度分析模式</div>
+            <div class="lp-title-dark">审查员 AI，<br>你来决定</div>
+            <div class="lp-desc-dark">初稿完成后，第二个 AI 扮演研究主管审查论据完整性。系统暂停并展示审查意见，由你决定是否继续深化——而非黑盒自动运行。</div>
+        </div>
+        """, unsafe_allow_html=True)
+    with c3:
+        st.markdown("""
+        <div class="lp-card-white">
+            <div class="lp-tag">实时行情</div>
+            <div class="lp-title">股价、PE、<br>市值一览</div>
+            <div class="lp-desc">每 5 分钟从 Yahoo Finance 同步当前股价、市盈率、远期 PE 与 52 周区间，与 AI 报告同屏对照，无需在多个窗口间切换。</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # 第二行功能
+    c4, c5 = st.columns(2)
+    with c4:
+        st.markdown("""
+        <div class="lp-card-white">
+            <div class="lp-tag">新闻情报中心</div>
+            <div class="lp-title">语义检索，不是关键词匹配</div>
+            <div class="lp-desc">向量数据库存储所有新闻，支持语义搜索——搜"数据中心需求"能命中标题含"cloud infrastructure spending"的英文文章。自动聚类为产品、财务、竞争、地缘等话题，并提供 LLM 多空情绪打分。</div>
+        </div>
+        """, unsafe_allow_html=True)
+    with c5:
+        st.markdown("""
+        <div class="lp-card-light">
+            <div class="lp-tag">竞品横向对比</div>
+            <div class="lp-title">实时拉取，<br>雷达图直观呈现</div>
+            <div class="lp-desc">实时调用 SEC EDGAR 数据对比同行营收规模、毛利率与净利率，标准化雷达图让相对优劣势一目了然。支持任意股票代码，不限于预设标的。</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # 数据来源 strip
+    st.markdown("""
+    <div class="source-strip">
+        <div class="source-label">数据来源</div>
+        <div class="source-badge">SEC EDGAR XBRL</div>
+        <div class="source-badge">Yahoo Finance</div>
+        <div class="source-badge">NewsAPI</div>
+        <div class="source-badge">Chroma 向量数据库</div>
+        <div class="source-badge">Claude Sonnet 4.6</div>
+        <div class="source-badge">PostgreSQL</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+# ════════════════════════════════
+# 市场概览（原"首页"）
+# ════════════════════════════════
+elif page == "市场概览":
     #ticker = st.session_state.get("ticker", "NVDA")
     # 如果切换到新标的且没有数据，自动提示
     with engine.connect() as conn:
@@ -628,75 +1043,92 @@ if page == "🏠 首页":
         rng_str = f"${lo:.0f} – ${hi:.0f}" if hi and lo else "—"
 
         st.markdown(f"""
-        <div class="quote-header">
+        <div class="quote-hero">
             <div>
                 <div class="quote-ticker">{ticker}</div>
-                <div class="quote-meta">更新于 {now_str} · Yahoo Finance</div>
+                <div class="quote-exchange">NASDAQ · 实时行情</div>
             </div>
+            <div class="quote-divider"></div>
             <div>
                 <div class="quote-price">${price:,.2f}</div>
-                <div class="{chg_color}">{chg_arrow} {abs(chg):.2f}%</div>
+                <div class="{chg_color}">{chg_arrow} {abs(chg):.2f}% 今日</div>
             </div>
+            <div class="quote-divider"></div>
             <div class="quote-pill"><div class="quote-pill-label">市值</div><div class="quote-pill-value">{cap_str}</div></div>
-            <div class="quote-pill"><div class="quote-pill-label">P/E</div><div class="quote-pill-value">{pe_str}</div></div>
+            <div class="quote-pill"><div class="quote-pill-label">P / E</div><div class="quote-pill-value">{pe_str}</div></div>
             <div class="quote-pill"><div class="quote-pill-label">远期 P/E</div><div class="quote-pill-value">{fpe_str}</div></div>
-            <div class="quote-pill"><div class="quote-pill-label">52周区间</div><div class="quote-pill-value">{rng_str}</div></div>
+            <div class="quote-pill"><div class="quote-pill-label">52 周区间</div><div class="quote-pill-value">{rng_str}</div></div>
+            <div style="margin-left:auto"><div class="quote-meta">更新于 {now_str}</div><div class="quote-meta">来源：Yahoo Finance</div></div>
         </div>
         """, unsafe_allow_html=True)
     else:
         st.markdown(f"""
-        <div class="quote-header">
-            <div><div class="quote-ticker">{ticker}</div>
-            <div class="quote-meta">行情暂时无法获取 · {now_str}</div></div>
+        <div class="quote-hero">
+            <div>
+                <div class="quote-ticker">{ticker}</div>
+                <div class="quote-exchange">行情暂时无法获取 · {now_str}</div>
+            </div>
         </div>
         """, unsafe_allow_html=True)
 
-    # ── 功能介绍卡片 ──
+    # ── 功能介绍 + 数据统计 ──
     with engine.connect() as conn:
         report_count = conn.execute(text(f"SELECT COUNT(*) FROM reports WHERE ticker='{ticker}'")).scalar()
         filing_count = conn.execute(text(f"SELECT COUNT(*) FROM filings WHERE ticker='{ticker}'")).scalar()
 
-    c1, c2, c3, c4 = st.columns(4)
-    with c1:
-        st.markdown("""
-        <div class="feature-card">
-            <div class="feature-card-icon">📄</div>
-            <div class="feature-card-title">AI 研究报告</div>
-            <div class="feature-card-desc">输入任意投研问题，AI 自动调取财报、新闻、竞品数据，生成结构完整的机构级分析报告。</div>
-        </div>""", unsafe_allow_html=True)
-    with c2:
-        st.markdown("""
-        <div class="feature-card">
-            <div class="feature-card-icon">🔍</div>
-            <div class="feature-card-title">深度分析模式</div>
-            <div class="feature-card-desc">初稿生成后由审查模型发现论据缺口，你可选择继续深化研究或直接采用，兼顾质量与效率。</div>
-        </div>""", unsafe_allow_html=True)
-    with c3:
-        st.markdown("""
-        <div class="feature-card">
-            <div class="feature-card-icon">📰</div>
-            <div class="feature-card-title">新闻情报中心</div>
-            <div class="feature-card-desc">语义检索相关新闻，自动聚类为产品、财务、竞争、地缘等话题，并提供市场多空情绪分析。</div>
-        </div>""", unsafe_allow_html=True)
-    with c4:
-        st.markdown("""
-        <div class="feature-card">
-            <div class="feature-card-icon">⚡</div>
-            <div class="feature-card-title">竞品横向对比</div>
-            <div class="feature-card-desc">实时拉取同行 SEC 数据，对比营收规模、毛利率与净利率，直观呈现相对竞争优势。</div>
-        </div>""", unsafe_allow_html=True)
+    # Bento 网格：左列2张浅色卡，右列2张深色卡
+    left_col, right_col = st.columns(2)
+    with left_col:
+        st.markdown(f"""
+        <div class="bento-card-light" style="margin-bottom:1rem">
+            <div class="bento-label">AI 研究报告</div>
+            <div class="bento-title">一问即达，<br>机构级报告</div>
+            <div class="bento-desc">输入任意投研问题，AI 自动调取财报、新闻、竞品数据，生成含基本面、竞品对比、多空论点与交易建议的完整分析。</div>
+        </div>
+        <div class="bento-card-light">
+            <div class="bento-label">新闻情报</div>
+            <div class="bento-title">语义检索，<br>话题聚类</div>
+            <div class="bento-desc">向量相似度匹配相关报道，自动聚类为产品、财务、地缘等话题，并提供 LLM 多空情绪分析。</div>
+        </div>
+        """, unsafe_allow_html=True)
+    with right_col:
+        st.markdown(f"""
+        <div class="bento-card-dark" style="margin-bottom:1rem">
+            <div class="bento-label-dark">深度分析</div>
+            <div class="bento-title-dark">审查员 AI，<br>你来决定</div>
+            <div class="bento-desc-dark">初稿生成后，第二个 AI 模型扮演研究主管发现论据缺口，由你选择是否继续深化——质量与效率兼顾。</div>
+        </div>
+        <div class="bento-card-dark">
+            <div class="bento-label-dark">竞品对比</div>
+            <div class="bento-title-dark">实时拉取，<br>横向基准</div>
+            <div class="bento-desc-dark">实时调用 SEC EDGAR 数据，对比同行营收规模、毛利率与净利率，雷达图直观呈现相对优势。</div>
+        </div>
+        """, unsafe_allow_html=True)
 
-    st.divider()
-
-    # ── 数据概览条 ──
-    db1, db2, db3 = st.columns(3)
-    db1.metric("已存档报告", f"{report_count} 份")
-    db2.metric("财报季度覆盖", f"{filing_count} 个季度")
-    db3.metric("数据来源", "SEC · Yahoo · NewsAPI")
-
-    st.divider()
+    # 数据统计条
+    st.markdown(f"""
+    <div class="stat-strip">
+        <div>
+            <div class="stat-item-label">已存档报告</div>
+            <div class="stat-item-value">{report_count} 份</div>
+        </div>
+        <div>
+            <div class="stat-item-label">财报季度覆盖</div>
+            <div class="stat-item-value">{filing_count} 个季度</div>
+        </div>
+        <div>
+            <div class="stat-item-label">数据来源</div>
+            <div class="stat-item-value" style="font-size:0.9rem">SEC · Yahoo · NewsAPI</div>
+        </div>
+        <div>
+            <div class="stat-item-label">分析标的</div>
+            <div class="stat-item-value">{ticker}</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
     # ── 财务趋势图 ──
     st.markdown(f'<div class="section-label">{ticker} · 财务趋势</div>', unsafe_allow_html=True)
+    st.markdown('<div class="chart-card">', unsafe_allow_html=True)
 
     import plotly.graph_objects as go
     from plotly.subplots import make_subplots
@@ -718,11 +1150,11 @@ if page == "🏠 首页":
                 margins.append(d.get("gross_margin"))
                 yoy_growths.append(d.get("revenue_growth_yoy"))
 
-        _NAVY = "#0f1729"
-        _BLUE = "#0052cc"
-        _TEAL = "#00c48c"
+        _NAVY = "#12102a"
+        _BLUE = "#6c5ce7"
+        _TEAL = "#00e5a0"
         _GOLD = "#f0b429"
-        _GRID = "rgba(15,23,41,0.06)"
+        _GRID = "rgba(18,16,42,0.06)"
 
         fig = make_subplots(
             rows=2, cols=1,
@@ -773,15 +1205,13 @@ if page == "🏠 首页":
         fig.update_yaxes(showgrid=True, gridcolor=_GRID, tickfont=dict(size=11), zeroline=False)
         fig.update_annotations(font_size=11, font_color="#8899bb")
         st.plotly_chart(fig, use_container_width=True)
-
-        # 关键数字摘要
         c1, c2, c3 = st.columns(3)
         c1.metric("最新季度营收", f"${revenues[-1]}B",
                   delta=f"{yoy_growths[-1]}% YoY" if yoy_growths[-1] else None)
         c2.metric("毛利率", f"{margins[-1]}%" if margins[-1] else "N/A",
                   delta=f"{round(margins[-1]-margins[-2],1)}pp" if len(margins)>=2 and margins[-1] and margins[-2] else None)
         c3.metric("数据覆盖", f"{len(periods)} 个季度")
-    
+    st.markdown('</div>', unsafe_allow_html=True)
 
     st.divider()
     # ── 竞品对比雷达图 ──
@@ -834,7 +1264,7 @@ if page == "🏠 首页":
         nm_norm  = normalize(net_margins)
 
         categories = ["营收规模", "毛利率", "净利率"]
-        _COMP_COLORS = ["#0052cc", "#f0b429", "#6b7a99"]
+        _COMP_COLORS = ["#6c5ce7", "#f0b429", "#a29bfe"]
 
         fig2 = go.Figure()
         for i, comp_ticker in enumerate(tickers):
@@ -878,16 +1308,17 @@ if page == "🏠 首页":
 
         col_radar, col_insights = st.columns([3, 2])
         with col_radar:
+            st.markdown('<div class="chart-card">', unsafe_allow_html=True)
             st.plotly_chart(fig2, use_container_width=True)
+            st.markdown('</div>', unsafe_allow_html=True)
         with col_insights:
-            st.markdown('<div class="section-label" style="margin-top:1.5rem">关键洞察</div>', unsafe_allow_html=True)
+            st.markdown('<div class="section-label" style="margin-top:1rem">关键洞察</div>', unsafe_allow_html=True)
             if comp_result.get("insights"):
-                for insight in comp_result["insights"]:
-                    st.markdown(
-                        f'<div style="font-size:0.84rem;color:#0f1729;padding:0.35rem 0;'
-                        f'border-bottom:1px solid #f0f2f5">{insight}</div>',
-                        unsafe_allow_html=True
-                    )
+                insights_html = "".join(
+                    f'<div class="insight-row">{ins}</div>'
+                    for ins in comp_result["insights"]
+                )
+                st.markdown(insights_html, unsafe_allow_html=True)
             with st.expander("查看完整数据", expanded=False):
                 df_comp = pd.DataFrame(table)
                 st.dataframe(df_comp, use_container_width=True, hide_index=True)
@@ -904,14 +1335,14 @@ if page == "🏠 首页":
         ).fetchall()
     if not report_rows:
         st.markdown(
-            f'<div style="color:#8899bb;font-size:0.85rem;padding:0.5rem 0">'
-            f'暂无 {ticker} 报告 — 前往「生成报告」创建第一份</div>',
+            f'<div class="report-block"><div style="color:#9b8ec4;font-size:0.85rem;padding:0.5rem 0">'
+            f'暂无 {ticker} 报告 — 前往「生成报告」创建第一份</div></div>',
             unsafe_allow_html=True
         )
     else:
-        rows_html = ""
+        rows_html = '<div class="report-block">'
         for r in report_rows:
-            q = r[2][:80] + ("…" if len(r[2]) > 80 else "")
+            q = r[2][:85] + ("…" if len(r[2]) > 85 else "")
             t_str = str(r[3])[:16]
             rows_html += (
                 f'<div class="report-row">'
@@ -920,13 +1351,14 @@ if page == "🏠 首页":
                 f'<span class="report-time">{t_str}</span>'
                 f'</div>'
             )
+        rows_html += '</div>'
         st.markdown(rows_html, unsafe_allow_html=True)
 
 
 # ════════════════════════════════
 # 生成报告
 # ════════════════════════════════
-elif page == "📝 生成报告":
+elif page == "生成报告":
     preset_questions = {
         "自定义问题...": "",
         "📊 全面投资价值分析": f"基于最新财报、竞品对比和近期新闻，{ticker} 当前的投资价值如何？看多和看空的核心论点分别是什么？",
@@ -1131,7 +1563,7 @@ elif page == "📝 生成报告":
 # ════════════════════════════════
 # 历史报告
 # ════════════════════════════════
-elif page == "📚 历史报告":
+elif page == "历史报告":
     st.title("历史报告")
 
     #ticker = st.session_state.get("ticker", "NVDA")
@@ -1203,7 +1635,7 @@ elif page == "📚 历史报告":
 # ════════════════════════════════
 # 新闻概览
 # ════════════════════════════════
-elif page == "📰 新闻概览":
+elif page == "新闻情报":
     #ticker = st.session_state.get("ticker", "NVDA")
     st.title("新闻概览")
 
@@ -1412,7 +1844,7 @@ elif page == "📰 新闻概览":
 # ════════════════════════════════
 # 系统状态
 # ════════════════════════════════
-elif page == "🗃️ 数据管理":
+elif page == "数据管理":
     st.title("数据管理")
     st.caption("查看本地数据状态，管理财报与新闻数据库")
 
