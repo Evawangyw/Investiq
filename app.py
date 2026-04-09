@@ -291,25 +291,210 @@ engine = create_engine(
 # ── 样式 ──
 st.markdown("""
 <style>
-.metric-card {
-    background: #f8f9fa;
+/* ── 全局字体与间距 ── */
+html, body, [class*="css"] {
+    font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+}
+
+/* ── 侧边栏 ── */
+[data-testid="stSidebar"] {
+    background: #0f1729;
+}
+[data-testid="stSidebar"] * {
+    color: #e8edf5 !important;
+}
+[data-testid="stSidebar"] .stRadio label {
+    font-size: 0.88rem;
+    letter-spacing: 0.02em;
+    color: #f0f4fa !important;
+}
+/* 标的选择框的值和按钮文字加亮 */
+[data-testid="stSidebar"] [data-testid="stSelectbox"] > div > div {
+    color: #ffffff !important;
+    font-weight: 600;
+}
+[data-testid="stSidebar"] [data-testid="stSelectbox"] label,
+[data-testid="stSidebar"] [data-testid="stTextInput"] label {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #8899bb !important;
+}
+/* 数据来源 caption */
+[data-testid="stSidebar"] [data-testid="stCaptionContainer"] p {
+    color: #8899bb !important;
+    font-size: 0.75rem;
+}
+/* section 小标题 */
+[data-testid="stSidebar"] h3,
+[data-testid="stSidebar"] [data-testid="stHeading"] {
+    color: #ffffff !important;
+    font-size: 0.8rem !important;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+/* 侧边栏按钮 */
+[data-testid="stSidebar"] .stButton > button {
+    background: #1a2540;
+    border: 1px solid #2a3a5c;
+    color: #e8edf5 !important;
+    font-weight: 500;
+    font-size: 0.85rem;
+}
+[data-testid="stSidebar"] .stButton > button:hover {
+    background: #243050;
+    border-color: #3a4e78;
+    color: #ffffff !important;
+}
+[data-testid="stSidebar"] .stButton > button[kind="primary"] {
+    background: #0052cc;
+    border: none;
+    color: #ffffff !important;
+    font-weight: 600;
+}
+[data-testid="stSidebar"] .stButton > button[kind="primary"]:hover {
+    background: #0047b3;
+}
+
+/* ── 主内容区 ── */
+.block-container {
+    padding-top: 1.5rem;
+    padding-bottom: 2rem;
+    max-width: 1200px;
+}
+
+/* ── 页面标题 ── */
+h1 {
+    font-size: 1.6rem !important;
+    font-weight: 700 !important;
+    color: #0f1729 !important;
+    letter-spacing: -0.02em;
+    margin-bottom: 0 !important;
+}
+h2 {
+    font-size: 1.05rem !important;
+    font-weight: 600 !important;
+    color: #1e3a5f !important;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-top: 0.5rem !important;
+}
+h3 {
+    font-size: 0.95rem !important;
+    font-weight: 600 !important;
+    color: #0f1729 !important;
+}
+
+/* ── 行情 Header 条 ── */
+.quote-header {
+    background: #0f1729;
     border-radius: 8px;
-    padding: 1rem 1.25rem;
-    border: 1px solid #e9ecef;
+    padding: 1rem 1.5rem;
+    margin-bottom: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 2rem;
 }
-.tool-badge {
-    display: inline-block;
-    background: #e8f4fd;
-    color: #1a6fa8;
-    border-radius: 4px;
-    padding: 2px 8px;
-    font-size: 12px;
-    margin: 2px;
+.quote-ticker {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #ffffff;
+    letter-spacing: -0.02em;
 }
-.report-card {
-    border-left: 3px solid #4CAF50;
-    padding-left: 12px;
-    margin-bottom: 8px;
+.quote-price {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #ffffff;
+}
+.quote-change-pos { color: #00c48c; font-weight: 600; font-size: 0.95rem; }
+.quote-change-neg { color: #ff5c5c; font-weight: 600; font-size: 0.95rem; }
+.quote-meta { color: #8899bb; font-size: 0.78rem; }
+.quote-pill {
+    background: #1a2540;
+    border-radius: 6px;
+    padding: 0.4rem 0.9rem;
+    text-align: center;
+}
+.quote-pill-label { color: #6b7a99; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; }
+.quote-pill-value { color: #e8edf5; font-size: 0.95rem; font-weight: 600; }
+
+/* ── 功能卡片 ── */
+.feature-card {
+    background: #f8fafd;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 1.25rem 1.4rem;
+    height: 100%;
+    border-top: 3px solid #0052cc;
+}
+.feature-card-icon { font-size: 1.4rem; margin-bottom: 0.5rem; }
+.feature-card-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #0f1729;
+    margin-bottom: 0.3rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.feature-card-desc { font-size: 0.82rem; color: #4a5568; line-height: 1.55; }
+
+/* ── 报告列表行 ── */
+.report-row {
+    border-bottom: 1px solid #f0f2f5;
+    padding: 0.65rem 0;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+.report-row:last-child { border-bottom: none; }
+.report-id { color: #0052cc; font-weight: 700; font-size: 0.8rem; min-width: 2rem; }
+.report-question { color: #0f1729; font-size: 0.85rem; flex: 1; }
+.report-time { color: #8899bb; font-size: 0.75rem; white-space: nowrap; }
+
+/* ── 区域标题 ── */
+.section-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #8899bb;
+    border-bottom: 1px solid #e8edf5;
+    padding-bottom: 0.4rem;
+    margin-bottom: 0.75rem;
+}
+
+/* ── Metric 覆盖 ── */
+[data-testid="stMetricValue"] {
+    font-size: 1.3rem !important;
+    font-weight: 700 !important;
+    color: #0f1729 !important;
+}
+[data-testid="stMetricLabel"] {
+    font-size: 0.72rem !important;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #8899bb !important;
+}
+[data-testid="stMetricDelta"] {
+    font-size: 0.82rem !important;
+}
+
+/* ── Divider ── */
+hr {
+    border-color: #e8edf5 !important;
+    margin: 1rem 0 !important;
+}
+
+/* ── 按钮 ── */
+.stButton > button[kind="primary"] {
+    background: #0052cc;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+.stButton > button[kind="primary"]:hover {
+    background: #0047b3;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -317,8 +502,13 @@ st.markdown("""
 
 # ── 侧边栏 ──
 with st.sidebar:
-    st.title("📈 InvestIQ")
-    st.caption("AI 投资研究 Agent")
+    st.markdown(
+        '<div style="font-size:1.2rem;font-weight:800;color:#ffffff;letter-spacing:-0.02em;'
+        'padding:0.5rem 0 0.1rem">InvestIQ</div>'
+        '<div style="font-size:0.72rem;color:#6b7a99;text-transform:uppercase;'
+        'letter-spacing:0.1em;margin-bottom:0.75rem">AI 投资研究平台</div>',
+        unsafe_allow_html=True
+    )
     st.divider()
 
     page = st.radio(
@@ -421,86 +611,92 @@ if page == "🏠 首页":
                 st.success(f"✓ {ticker} 数据拉取完成")
                 st.rerun()
         st.stop()
-    st.title("InvestIQ — AI 投资研究 Agent")
-    st.caption("基于 ReAct 架构，自主调用多个数据工具，产出机构级研究报告")
+    # ── 行情 Header ──
+    mkt = get_market_data(ticker)
+    now_str = datetime.now().strftime("%Y-%m-%d  %H:%M")
 
-    st.divider()
+    if mkt and mkt.get("price"):
+        price = mkt["price"]
+        chg = mkt.get("day_change_pct") or 0
+        chg_color = "quote-change-pos" if chg >= 0 else "quote-change-neg"
+        chg_arrow = "▲" if chg >= 0 else "▼"
+        cap = mkt.get("market_cap")
+        cap_str = f"${cap/1e9:.0f}B" if cap else "—"
+        pe_str = f"{mkt['pe']:.1f}x" if mkt.get("pe") else "—"
+        fpe_str = f"{mkt['forward_pe']:.1f}x" if mkt.get("forward_pe") else "—"
+        hi = mkt.get("week52_high"); lo = mkt.get("week52_low")
+        rng_str = f"${lo:.0f} – ${hi:.0f}" if hi and lo else "—"
 
-    # 关键指标卡片
+        st.markdown(f"""
+        <div class="quote-header">
+            <div>
+                <div class="quote-ticker">{ticker}</div>
+                <div class="quote-meta">更新于 {now_str} · Yahoo Finance</div>
+            </div>
+            <div>
+                <div class="quote-price">${price:,.2f}</div>
+                <div class="{chg_color}">{chg_arrow} {abs(chg):.2f}%</div>
+            </div>
+            <div class="quote-pill"><div class="quote-pill-label">市值</div><div class="quote-pill-value">{cap_str}</div></div>
+            <div class="quote-pill"><div class="quote-pill-label">P/E</div><div class="quote-pill-value">{pe_str}</div></div>
+            <div class="quote-pill"><div class="quote-pill-label">远期 P/E</div><div class="quote-pill-value">{fpe_str}</div></div>
+            <div class="quote-pill"><div class="quote-pill-label">52周区间</div><div class="quote-pill-value">{rng_str}</div></div>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown(f"""
+        <div class="quote-header">
+            <div><div class="quote-ticker">{ticker}</div>
+            <div class="quote-meta">行情暂时无法获取 · {now_str}</div></div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # ── 功能介绍卡片 ──
     with engine.connect() as conn:
         report_count = conn.execute(text(f"SELECT COUNT(*) FROM reports WHERE ticker='{ticker}'")).scalar()
         filing_count = conn.execute(text(f"SELECT COUNT(*) FROM filings WHERE ticker='{ticker}'")).scalar()
 
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.metric("历史报告", f"{report_count} 份")
-    with col2:
-        st.metric("财报季度数据", f"{filing_count} 个季度")
-    with col3:
-        st.metric("可用工具", "6 个")
-    with col4:
-        st.metric("分析标的", ticker)
-
-    # ── 实时行情卡片 ──
-    mkt = get_market_data(ticker)
-    if mkt and mkt.get("price"):
-        st.divider()
-        st.subheader(f"{ticker} 实时行情")
-        m1, m2, m3, m4, m5 = st.columns(5)
-        price = mkt["price"]
-        chg = mkt.get("day_change_pct")
-        m1.metric(
-            "当前股价",
-            f"${price:,.2f}",
-            delta=f"{chg:+.2f}%" if chg else None,
-            delta_color="normal"
-        )
-        m2.metric("市盈率 (PE)", f"{mkt['pe']:.1f}x" if mkt.get("pe") else "N/A")
-        m3.metric("预期市盈率", f"{mkt['forward_pe']:.1f}x" if mkt.get("forward_pe") else "N/A")
-        cap = mkt.get("market_cap")
-        m4.metric("市值", f"${cap/1e9:.0f}B" if cap else "N/A")
-        hi = mkt.get("week52_high")
-        lo = mkt.get("week52_low")
-        m5.metric("52周区间", f"${lo:.0f} – ${hi:.0f}" if hi and lo else "N/A")
-        st.caption("数据来源：Yahoo Finance，每5分钟刷新")
-    else:
-        st.info("实时行情暂时无法获取（网络或API限制），不影响AI分析功能")
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        st.markdown("""
+        <div class="feature-card">
+            <div class="feature-card-icon">📄</div>
+            <div class="feature-card-title">AI 研究报告</div>
+            <div class="feature-card-desc">输入任意投研问题，AI 自动调取财报、新闻、竞品数据，生成结构完整的机构级分析报告。</div>
+        </div>""", unsafe_allow_html=True)
+    with c2:
+        st.markdown("""
+        <div class="feature-card">
+            <div class="feature-card-icon">🔍</div>
+            <div class="feature-card-title">深度分析模式</div>
+            <div class="feature-card-desc">初稿生成后由审查模型发现论据缺口，你可选择继续深化研究或直接采用，兼顾质量与效率。</div>
+        </div>""", unsafe_allow_html=True)
+    with c3:
+        st.markdown("""
+        <div class="feature-card">
+            <div class="feature-card-icon">📰</div>
+            <div class="feature-card-title">新闻情报中心</div>
+            <div class="feature-card-desc">语义检索相关新闻，自动聚类为产品、财务、竞争、地缘等话题，并提供市场多空情绪分析。</div>
+        </div>""", unsafe_allow_html=True)
+    with c4:
+        st.markdown("""
+        <div class="feature-card">
+            <div class="feature-card-icon">⚡</div>
+            <div class="feature-card-title">竞品横向对比</div>
+            <div class="feature-card-desc">实时拉取同行 SEC 数据，对比营收规模、毛利率与净利率，直观呈现相对竞争优势。</div>
+        </div>""", unsafe_allow_html=True)
 
     st.divider()
 
-    # Agent 架构说明
-    col_left, col_right = st.columns([3, 2])
-
-    with col_left:
-        st.subheader("Agent 工作流程")
-        st.markdown("""
-        这个系统是一个真正的 **ReAct Agent**，而不是固定流程的 Pipeline：
-
-        1. **接收问题** → 用户输入投研问题
-        2. **自主规划** → Claude 决定调用哪些工具、按什么顺序
-        3. **工具调用** → 财报查询、新闻检索、竞品对比
-        4. **观察结果** → 看到数据后决定下一步
-        5. **反思循环** → 第二个 LLM 审查报告，发现不足
-        6. **补充调用** → 针对缺失自动补充搜索
-        7. **输出报告** → 结构化的机构级研究报告
-        """)
-
-    with col_right:
-        st.subheader("可用工具")
-        tools = [
-            ("📊", "SEC 财报查询", "获取最新季度财务数据"),
-            ("📰", "语义新闻检索", "向量相似度匹配相关报道"),
-            ("📋", "近期标题概览", "读取最新新闻标题"),
-            ("📈", "结构化财务因子", "提取营收/毛利率等关键指标"),
-            ("🔄", "季度趋势对比", "比较相邻两季度变化"),
-            ("⚡", "竞品横向对比", "与同行对比盈利能力"),
-        ]
-        for icon, name, desc in tools:
-            st.markdown(f"{icon} **{name}**  \n<small style='color:gray'>{desc}</small>", unsafe_allow_html=True)
+    # ── 数据概览条 ──
+    db1, db2, db3 = st.columns(3)
+    db1.metric("已存档报告", f"{report_count} 份")
+    db2.metric("财报季度覆盖", f"{filing_count} 个季度")
+    db3.metric("数据来源", "SEC · Yahoo · NewsAPI")
 
     st.divider()
     # ── 财务趋势图 ──
-    st.subheader(f"{ticker} 财务趋势")
+    st.markdown(f'<div class="section-label">{ticker} · 财务趋势</div>', unsafe_allow_html=True)
 
     import plotly.graph_objects as go
     from plotly.subplots import make_subplots
@@ -522,43 +718,60 @@ if page == "🏠 首页":
                 margins.append(d.get("gross_margin"))
                 yoy_growths.append(d.get("revenue_growth_yoy"))
 
+        _NAVY = "#0f1729"
+        _BLUE = "#0052cc"
+        _TEAL = "#00c48c"
+        _GOLD = "#f0b429"
+        _GRID = "rgba(15,23,41,0.06)"
+
         fig = make_subplots(
             rows=2, cols=1,
             shared_xaxes=True,
-            vertical_spacing=0.08,
+            vertical_spacing=0.1,
             subplot_titles=("季度营收（$B）", "毛利率（%）& 同比增速（%）")
         )
 
         fig.add_trace(go.Bar(
             x=periods, y=revenues, name="营收 ($B)",
-            marker_color="#6366f1",
+            marker_color=_BLUE,
+            marker_line_width=0,
             text=[f"${v}B" for v in revenues],
-            textposition="outside"
+            textposition="outside",
+            textfont=dict(size=11, color=_NAVY)
         ), row=1, col=1)
 
         fig.add_trace(go.Scatter(
             x=periods, y=margins, name="毛利率 (%)",
-            line=dict(color="#10b981", width=2.5),
+            line=dict(color=_TEAL, width=2.5),
             mode="lines+markers+text",
+            marker=dict(size=5),
             text=[f"{v}%" if v else "" for v in margins],
-            textposition="top center"
+            textposition="top center",
+            textfont=dict(size=10)
         ), row=2, col=1)
 
         fig.add_trace(go.Scatter(
             x=periods, y=yoy_growths, name="同比增速 (%)",
-            line=dict(color="#f59e0b", width=2, dash="dot"),
+            line=dict(color=_GOLD, width=2, dash="dot"),
             mode="lines+markers",
+            marker=dict(size=4),
         ), row=2, col=1)
 
         fig.update_layout(
-            height=480,
-            margin=dict(l=0, r=0, t=30, b=0),
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+            height=440,
+            margin=dict(l=0, r=0, t=32, b=0),
+            legend=dict(
+                orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1,
+                font=dict(size=11, color=_NAVY),
+                bgcolor="rgba(0,0,0,0)"
+            ),
             plot_bgcolor="rgba(0,0,0,0)",
             paper_bgcolor="rgba(0,0,0,0)",
+            font=dict(family="Inter, Helvetica Neue, Arial", color=_NAVY),
         )
-        fig.update_xaxes(showgrid=False)
-        fig.update_yaxes(showgrid=True, gridcolor="rgba(128,128,128,0.1)")
+        fig.update_xaxes(showgrid=False, tickfont=dict(size=11), linecolor=_GRID)
+        fig.update_yaxes(showgrid=True, gridcolor=_GRID, tickfont=dict(size=11), zeroline=False)
+        fig.update_annotations(font_size=11, font_color="#8899bb")
         st.plotly_chart(fig, use_container_width=True)
 
         # 关键数字摘要
@@ -572,7 +785,7 @@ if page == "🏠 首页":
 
     st.divider()
     # ── 竞品对比雷达图 ──
-    st.subheader("竞品横向对比")
+    st.markdown('<div class="section-label">竞品横向对比</div>', unsafe_allow_html=True)
 
     with st.spinner("拉取竞品数据..."):
         from tools.competitor_tool import compare_with_competitors
@@ -621,21 +834,20 @@ if page == "🏠 首页":
         nm_norm  = normalize(net_margins)
 
         categories = ["营收规模", "毛利率", "净利率"]
-
-        colors = ["#6366f1", "#f59e0b", "#94a3b8"]
+        _COMP_COLORS = ["#0052cc", "#f0b429", "#6b7a99"]
 
         fig2 = go.Figure()
         for i, comp_ticker in enumerate(tickers):
             values = [rev_norm[i], gm_norm[i], nm_norm[i]]
-            values_display = [revenues[i], gross_margins[i], net_margins[i]]
+            color = _COMP_COLORS[i % len(_COMP_COLORS)]
             fig2.add_trace(go.Scatterpolar(
                 r=values + [values[0]],
                 theta=categories + [categories[0]],
                 fill="toself",
                 name=comp_ticker,
-                line=dict(color=colors[i], width=2),
-                fillcolor=colors[i],
-                opacity=0.25,
+                line=dict(color=color, width=2),
+                fillcolor=color,
+                opacity=0.18,
                 hovertemplate=(
                     f"<b>{comp_ticker}</b><br>"
                     f"营收: ${revenues[i]}B<br>"
@@ -647,47 +859,68 @@ if page == "🏠 首页":
 
         fig2.update_layout(
             polar=dict(
-                radialaxis=dict(visible=True, range=[0, 100], showticklabels=False),
-                angularaxis=dict(tickfont=dict(size=13))
+                bgcolor="rgba(0,0,0,0)",
+                radialaxis=dict(
+                    visible=True, range=[0, 100], showticklabels=False,
+                    gridcolor="rgba(15,23,41,0.08)", linecolor="rgba(15,23,41,0.08)"
+                ),
+                angularaxis=dict(tickfont=dict(size=12, color="#0f1729"), linecolor="rgba(15,23,41,0.1)")
             ),
-            legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5),
-            height=380,
-            margin=dict(l=40, r=40, t=20, b=40),
+            legend=dict(
+                orientation="h", yanchor="bottom", y=-0.18, xanchor="center", x=0.5,
+                font=dict(size=11, color="#0f1729"), bgcolor="rgba(0,0,0,0)"
+            ),
+            height=360,
+            margin=dict(l=40, r=40, t=10, b=40),
             paper_bgcolor="rgba(0,0,0,0)",
+            font=dict(family="Inter, Helvetica Neue, Arial"),
         )
-        st.plotly_chart(fig2, use_container_width=True)
 
-        # 关键洞察文字
-        if comp_result.get("insights"):
-            st.caption("关键洞察")
-            for insight in comp_result["insights"]:
-                st.markdown(f"• {insight}")
-
-        # 数据明细表
-        with st.expander("查看原始数据"):
-            df_comp = pd.DataFrame(table)
-            st.dataframe(df_comp, use_container_width=True, hide_index=True)
+        col_radar, col_insights = st.columns([3, 2])
+        with col_radar:
+            st.plotly_chart(fig2, use_container_width=True)
+        with col_insights:
+            st.markdown('<div class="section-label" style="margin-top:1.5rem">关键洞察</div>', unsafe_allow_html=True)
+            if comp_result.get("insights"):
+                for insight in comp_result["insights"]:
+                    st.markdown(
+                        f'<div style="font-size:0.84rem;color:#0f1729;padding:0.35rem 0;'
+                        f'border-bottom:1px solid #f0f2f5">{insight}</div>',
+                        unsafe_allow_html=True
+                    )
+            with st.expander("查看完整数据", expanded=False):
+                df_comp = pd.DataFrame(table)
+                st.dataframe(df_comp, use_container_width=True, hide_index=True)
     else:
         st.warning("竞品数据获取失败，请检查网络连接")
 
     st.divider()
     # 最近报告预览
-    st.subheader("最近生成的报告")
+    st.markdown('<div class="section-label">最近报告</div>', unsafe_allow_html=True)
     with engine.connect() as conn:
         report_rows = conn.execute(
-            text("SELECT id, ticker, question, created_at FROM reports WHERE ticker=:t ORDER BY created_at DESC LIMIT 3"),
+            text("SELECT id, ticker, question, created_at FROM reports WHERE ticker=:t ORDER BY created_at DESC LIMIT 5"),
             {"t": ticker}
         ).fetchall()
     if not report_rows:
-        st.info(f"{ticker} 暂无报告，去「生成报告」页面创建第一份")
+        st.markdown(
+            f'<div style="color:#8899bb;font-size:0.85rem;padding:0.5rem 0">'
+            f'暂无 {ticker} 报告 — 前往「生成报告」创建第一份</div>',
+            unsafe_allow_html=True
+        )
     else:
+        rows_html = ""
         for r in report_rows:
-            st.markdown(f"""
-            <div class="report-card">
-            <strong>#{r[0]}</strong> {r[2][:70]}{'...' if len(r[2]) > 70 else ''}<br>
-            <small style="color: gray">{str(r[3])[:16]}</small>
-            </div>
-            """, unsafe_allow_html=True)
+            q = r[2][:80] + ("…" if len(r[2]) > 80 else "")
+            t_str = str(r[3])[:16]
+            rows_html += (
+                f'<div class="report-row">'
+                f'<span class="report-id">#{r[0]}</span>'
+                f'<span class="report-question">{q}</span>'
+                f'<span class="report-time">{t_str}</span>'
+                f'</div>'
+            )
+        st.markdown(rows_html, unsafe_allow_html=True)
 
 
 # ════════════════════════════════
