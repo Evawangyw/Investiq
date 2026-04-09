@@ -259,7 +259,11 @@ from agent.research_agent import (
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from sqlalchemy import create_engine, text
-from streamlit_option_menu import option_menu
+try:
+    from streamlit_option_menu import option_menu
+    _HAS_OPTION_MENU = True
+except ImportError:
+    _HAS_OPTION_MENU = False
 
 
 @st.cache_data(ttl=300)
@@ -317,58 +321,85 @@ p, li, span, div { font-size: 1rem; }
 [data-testid="stSidebar"] {
     background: #1a1730;
 }
+[data-testid="stSidebar"] > div {
+    padding: 0.75rem 1rem 1.5rem;
+}
 [data-testid="stSidebar"] * { color: #e2dff0 !important; }
-[data-testid="stSidebar"] .stRadio label {
-    font-size: 0.88rem;
-    letter-spacing: 0.01em;
-    color: #e2dff0 !important;
-    padding: 0.2rem 0;
-}
+
+/* Selectbox */
 [data-testid="stSidebar"] [data-testid="stSelectbox"] > div > div {
-    color: #ffffff !important;
+    background: #12102a !important;
+    border: 1px solid #2a2445 !important;
+    border-radius: 10px !important;
+    color: #f0eefa !important;
     font-weight: 600;
+    font-size: 0.95rem;
 }
-[data-testid="stSidebar"] [data-testid="stSelectbox"] label,
-[data-testid="stSidebar"] [data-testid="stTextInput"] label {
-    font-size: 0.72rem;
-    text-transform: uppercase;
-    letter-spacing: 0.09em;
-    color: #7a708e !important;
+[data-testid="stSidebar"] [data-testid="stSelectbox"] label { display: none !important; }
+
+/* Text input */
+[data-testid="stSidebar"] [data-testid="stTextInput"] input {
+    background: #12102a !important;
+    border: 1px solid #2a2445 !important;
+    border-radius: 10px !important;
+    color: #f0eefa !important;
+    font-weight: 600;
+    font-size: 0.95rem;
 }
+[data-testid="stSidebar"] [data-testid="stTextInput"] label { display: none !important; }
+
+/* Caption/info/success/error text */
+[data-testid="stSidebar"] small,
 [data-testid="stSidebar"] [data-testid="stCaptionContainer"] p {
-    color: #7a708e !important;
-    font-size: 0.74rem;
+    color: #6b6080 !important;
+    font-size: 0.72rem !important;
 }
-[data-testid="stSidebar"] h3,
-[data-testid="stSidebar"] [data-testid="stHeading"] {
-    color: #ffffff !important;
-    font-size: 0.75rem !important;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
+
+/* Info/success/warning boxes */
+[data-testid="stSidebar"] [data-testid="stAlert"] {
+    background: #12102a !important;
+    border: 1px solid #2a2445 !important;
+    border-radius: 10px !important;
+    font-size: 0.8rem !important;
 }
+
+/* Default buttons */
 [data-testid="stSidebar"] .stButton > button {
-    background: #2a2545;
-    border: 1px solid #3d3660;
-    color: #e2dff0 !important;
+    background: #12102a;
+    border: 1px solid #2a2445;
+    color: #c8c0e8 !important;
     font-weight: 500;
-    font-size: 0.84rem;
+    font-size: 0.85rem;
     border-radius: 10px;
+    letter-spacing: 0.01em;
+    padding: 0.45rem 1rem;
+    transition: all 0.15s ease;
 }
 [data-testid="stSidebar"] .stButton > button:hover {
-    background: #352f58;
+    background: #2a2445;
     border-color: #5047a0;
-    color: #ffffff !important;
+    color: #f0eefa !important;
 }
+
+/* Primary button */
 [data-testid="stSidebar"] .stButton > button[kind="primary"] {
     background: #6c5ce7;
     border: none;
     color: #ffffff !important;
-    font-weight: 600;
+    font-weight: 700;
     border-radius: 10px;
 }
 [data-testid="stSidebar"] .stButton > button[kind="primary"]:hover {
     background: #5a4dd6;
 }
+
+/* Progress bar */
+[data-testid="stSidebar"] [data-testid="stProgressBar"] > div {
+    background: #6c5ce7 !important;
+}
+
+/* Hide default Streamlit hr in sidebar */
+[data-testid="stSidebar"] hr { display: none !important; }
 
 /* ══ 标题系统 ══ */
 h1 {
@@ -813,43 +844,62 @@ hr { border-color: #e4e0f0 !important; margin: 1.25rem 0 !important; }
 """, unsafe_allow_html=True)
 
 
-# ── 侧边栏（仅保留标的选择 + 数据控制）──
+# ── 侧边栏 ──
 with st.sidebar:
-    st.markdown(
-        '<div style="font-size:1.25rem;font-weight:800;color:#f0eefa;letter-spacing:-0.02em;'
-        'padding:0.5rem 0 0.1rem">InvestIQ</div>'
-        '<div style="font-size:0.72rem;color:#7a708e;text-transform:uppercase;'
-        'letter-spacing:0.12em;margin-bottom:0.75rem">AI 投资研究平台</div>',
-        unsafe_allow_html=True
-    )
-    st.divider()
-    _PRESET_TICKERS = ["NVDA", "AMD", "INTC", "MSFT", "TSLA", "META", "AAPL", "GOOGL", "AMZN", "其他（自定义）..."]
-    _ticker_choice = st.selectbox("分析标的", _PRESET_TICKERS, index=0)
-    if _ticker_choice == "其他（自定义）...":
-        _custom = st.text_input(
-            "输入股票代码",
-            placeholder="例如：AAPL、BABA、TSM",
-            max_chars=10
-        ).strip().upper()
+    # Brand
+    st.markdown("""
+    <div style="padding:1rem 0 0.25rem">
+        <div style="font-size:1.3rem;font-weight:800;color:#f0eefa;letter-spacing:-0.03em;line-height:1">
+            InvestIQ
+        </div>
+        <div style="font-size:0.68rem;color:#6b6080;text-transform:uppercase;letter-spacing:0.14em;margin-top:0.3rem">
+            AI 投资研究平台
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown('<div style="height:1px;background:#2a2445;margin:0.75rem 0"></div>', unsafe_allow_html=True)
+
+    # ── 标的选择 ──
+    st.markdown('<div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#6b6080;margin-bottom:0.4rem">分析标的</div>', unsafe_allow_html=True)
+    _PRESET_TICKERS = ["NVDA", "AMD", "INTC", "MSFT", "TSLA", "META", "AAPL", "GOOGL", "AMZN", "自定义..."]
+    _ticker_choice = st.selectbox("分析标的", _PRESET_TICKERS, index=0, label_visibility="collapsed")
+    if _ticker_choice == "自定义...":
+        _custom = st.text_input("股票代码", placeholder="例如：BABA、TSM", max_chars=10, label_visibility="collapsed").strip().upper()
         ticker = _custom if _custom else "NVDA"
     else:
         ticker = _ticker_choice
-    st.caption("数据来源：SEC XBRL + Yahoo Finance + NewsAPI")
 
+    # 迷你行情显示
+    _sb_mkt = get_market_data(ticker)
+    if _sb_mkt and _sb_mkt.get("price"):
+        _p = _sb_mkt["price"]
+        _chg = _sb_mkt.get("day_change_pct") or 0
+        _chg_color = "#00e5a0" if _chg >= 0 else "#ff6b6b"
+        _arrow = "▲" if _chg >= 0 else "▼"
+        st.markdown(f"""
+        <div style="background:#12102a;border-radius:12px;padding:0.85rem 1rem;margin:0.5rem 0 0">
+            <div style="font-size:1.4rem;font-weight:800;color:#f0eefa;letter-spacing:-0.02em;line-height:1">${_p:,.2f}</div>
+            <div style="font-size:0.78rem;font-weight:600;color:{_chg_color};margin-top:0.2rem">{_arrow} {abs(_chg):.2f}% 今日</div>
+            <div style="font-size:0.68rem;color:#6b6080;margin-top:0.3rem;letter-spacing:0.04em">Yahoo Finance · 5min 缓存</div>
+        </div>
+        """, unsafe_allow_html=True)
 
-    st.divider()
-    st.subheader("数据更新")
+    st.markdown('<div style="height:1px;background:#2a2445;margin:1rem 0"></div>', unsafe_allow_html=True)
 
-    if st.button("🔄 刷新新闻", use_container_width=True):
+    # ── 数据更新 ──
+    st.markdown('<div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#6b6080;margin-bottom:0.6rem">数据更新</div>', unsafe_allow_html=True)
+
+    if st.button("刷新新闻", use_container_width=True):
         with st.spinner("拉取最新新闻..."):
             try:
                 from tools.news_tool import fetch_and_store_news
                 count = fetch_and_store_news(days_back=25, ticker=ticker)
-                st.success(f"✓ 新增 {count} 条新闻")
+                st.success(f"新增 {count} 条")
             except Exception as e:
                 st.error(f"失败：{e}")
 
-    if st.button("📊 刷新财报", use_container_width=True):
+    if st.button("刷新财报", use_container_width=True):
         with st.spinner("检查财报数据..."):
             try:
                 from tools.filing_tool import fetch_and_store_filings
@@ -861,15 +911,15 @@ with st.sidebar:
                         text(f"SELECT period FROM filings WHERE ticker='{ticker}' ORDER BY period DESC LIMIT 1")
                     ).scalar()
                 if count > 0:
-                    st.info(f"数据已是最新（{count} 个季度，最新至 {latest}）")
+                    st.info(f"{count} 个季度 · 最新至 {latest}")
                 else:
                     fetch_and_store_filings(ticker=ticker, count=4)
-                    st.success("✓ 财报数据已更新")
+                    st.success("财报已更新")
                     st.rerun()
             except Exception as e:
                 st.error(f"失败：{e}")
 
-    if st.button("⚡ 一键全部刷新", use_container_width=True, type="primary"):
+    if st.button("一键全部刷新", use_container_width=True, type="primary"):
         progress = st.progress(0, text="开始更新...")
         try:
             from tools.news_tool import fetch_and_store_news
@@ -878,51 +928,81 @@ with st.sidebar:
             news_count = fetch_and_store_news(days_back=25, ticker=ticker)
             progress.progress(60, text="拉取财报...")
             fetch_and_store_filings(ticker=ticker, count=4)
-            progress.progress(100, text="完成！")
-            st.success(f"✓ 新闻 +{news_count} 条，财报已更新")
+            progress.progress(100, text="完成")
+            st.success(f"新闻 +{news_count} 条，财报已更新")
             st.rerun()
         except Exception as e:
             st.error(f"失败：{e}")
 
-    st.divider()
-    if st.button("➕ 初始化新标的", use_container_width=True, help="为新股票代码拉取财报和新闻数据"):
+    st.markdown('<div style="height:1px;background:#2a2445;margin:1rem 0"></div>', unsafe_allow_html=True)
+
+    if st.button("初始化新标的", use_container_width=True):
         st.session_state._setup_done = False
         st.rerun()
+
+    # 底部数据来源说明
+    st.markdown("""
+    <div style="margin-top:auto;padding-top:1.5rem">
+        <div style="font-size:0.65rem;color:#4a4060;line-height:1.7;letter-spacing:0.03em">
+            数据来源<br>
+            SEC EDGAR · Yahoo Finance<br>
+            NewsAPI · Chroma · PostgreSQL
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
 
 # ════════════════════════════════
 # 顶部导航菜单
 # ════════════════════════════════
-page = option_menu(
-    menu_title=None,
-    options=["产品介绍", "市场概览", "生成报告", "历史报告", "新闻情报", "数据管理"],
-    icons=["stars", "bar-chart-line", "file-earmark-text", "clock-history", "newspaper", "database"],
-    default_index=0,
-    orientation="horizontal",
-    styles={
-        "container": {
-            "padding": "0.4rem 0.75rem",
-            "background-color": "#1a1730",
-            "border-radius": "16px",
-            "margin-bottom": "1.5rem",
+_NAV_PAGES = ["产品介绍", "市场概览", "生成报告", "历史报告", "新闻情报", "数据管理"]
+
+if _HAS_OPTION_MENU:
+    page = option_menu(
+        menu_title=None,
+        options=_NAV_PAGES,
+        icons=["stars", "bar-chart-line", "file-earmark-text", "clock-history", "newspaper", "database"],
+        default_index=0,
+        orientation="horizontal",
+        styles={
+            "container": {
+                "padding": "0.4rem 0.75rem",
+                "background-color": "#1a1730",
+                "border-radius": "16px",
+                "margin-bottom": "1.5rem",
+            },
+            "icon": {"color": "#a29bfe", "font-size": "1rem"},
+            "nav-link": {
+                "font-size": "0.9rem",
+                "font-weight": "600",
+                "color": "#9b8ec4",
+                "padding": "0.5rem 1rem",
+                "border-radius": "10px",
+                "letter-spacing": "0.01em",
+            },
+            "nav-link-selected": {
+                "background-color": "#2d2850",
+                "color": "#f0eefa",
+            },
+            "menu-title": {"display": "none"},
         },
-        "icon": {"color": "#a29bfe", "font-size": "1rem"},
-        "nav-link": {
-            "font-size": "0.9rem",
-            "font-weight": "600",
-            "color": "#9b8ec4",
-            "padding": "0.5rem 1rem",
-            "border-radius": "10px",
-            "letter-spacing": "0.01em",
-        },
-        "nav-link-selected": {
-            "background-color": "#2d2850",
-            "color": "#f0eefa",
-        },
-        "menu-title": {"display": "none"},
-    },
-    key="top_nav",
-)
+        key="top_nav",
+    )
+else:
+    # Fallback: styled horizontal radio
+    st.markdown("""
+    <style>
+    div[data-testid="stHorizontalBlock"] [data-testid="stRadio"] > div {
+        flex-direction: row; gap: 0.5rem;
+    }
+    div[data-testid="stHorizontalBlock"] [data-testid="stRadio"] label {
+        background: #1a1730; color: #9b8ec4 !important;
+        border-radius: 10px; padding: 0.45rem 1rem;
+        font-size: 0.9rem; font-weight: 600; cursor: pointer;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    page = st.radio("导航", _NAV_PAGES, horizontal=True, label_visibility="collapsed")
 
 
 # ════════════════════════════════
