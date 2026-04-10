@@ -256,6 +256,7 @@ from agent.research_agent import (
     run_research_agent, get_report_history, get_report_by_id,
     run_pass1, run_pass2, save_report
 )
+from eval.report_evaluator import evaluate_report, EVAL_DIMENSIONS
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from sqlalchemy import create_engine, text
@@ -285,6 +286,68 @@ def get_market_data(ticker: str) -> dict | None:
         }
     except Exception:
         return None
+
+
+def _render_eval_scores(result: dict):
+    """渲染报告质量评分卡（传入 evaluate_report 的返回值）"""
+    if "error" in result:
+        st.error(f"评估失败：{result['error']}")
+        return
+
+    total = result["total"]
+    grade = result["grade"]
+    scores = result["scores"]
+
+    # 等级颜色
+    grade_color = {
+        "A": "#00a87e", "B+": "#494fdf", "B": "#494fdf",
+        "C+": "#ec7e00", "C": "#ec7e00", "D": "#e23b4a",
+    }.get(grade, "#8d969e")
+
+    # 总分卡
+    st.markdown(f"""
+    <div style="background:#191c1f;border-radius:16px;padding:1.25rem 1.75rem;display:flex;align-items:center;gap:2rem;margin-bottom:1rem;">
+        <div style="text-align:center;min-width:64px">
+            <div style="font-size:2.2rem;font-weight:800;color:{grade_color};letter-spacing:-0.04em;line-height:1">{grade}</div>
+            <div style="font-size:0.68rem;color:#8d969e;text-transform:uppercase;letter-spacing:0.1em;margin-top:0.2rem">评级</div>
+        </div>
+        <div style="width:1px;height:48px;background:rgba(255,255,255,0.1)"></div>
+        <div style="text-align:center;min-width:56px">
+            <div style="font-size:2.2rem;font-weight:800;color:#ffffff;letter-spacing:-0.04em;line-height:1">{total}<span style="font-size:1rem;color:#8d969e;font-weight:500">/25</span></div>
+            <div style="font-size:0.68rem;color:#8d969e;text-transform:uppercase;letter-spacing:0.1em;margin-top:0.2rem">总分</div>
+        </div>
+        <div style="width:1px;height:48px;background:rgba(255,255,255,0.1)"></div>
+        <div style="flex:1;font-size:0.9rem;color:#8d969e;line-height:1.55;letter-spacing:0.24px">{result.get('summary', '')}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # 5 个维度条形
+    cols = st.columns(5)
+    for i, dim in enumerate(EVAL_DIMENSIONS):
+        key = dim["key"]
+        label = dim["label"]
+        entry = scores.get(key, {})
+        score = entry.get("score", 0)
+        comment = entry.get("comment", "")
+        bar_pct = score / 5 * 100
+        bar_color = (
+            "#00a87e" if score >= 4
+            else "#494fdf" if score == 3
+            else "#ec7e00" if score == 2
+            else "#e23b4a"
+        )
+        with cols[i]:
+            st.markdown(f"""
+            <div style="background:#ffffff;border:1px solid #c9c9cd;border-radius:14px;padding:1rem;text-align:center">
+                <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#8d969e;margin-bottom:0.5rem">{label}</div>
+                <div style="font-size:1.8rem;font-weight:800;color:{bar_color};letter-spacing:-0.03em;line-height:1">{score}</div>
+                <div style="font-size:0.65rem;color:#8d969e;margin-bottom:0.5rem">/5</div>
+                <div style="height:4px;background:#f4f4f4;border-radius:9999px;overflow:hidden;margin-bottom:0.5rem">
+                    <div style="height:100%;width:{bar_pct}%;background:{bar_color};border-radius:9999px"></div>
+                </div>
+                <div style="font-size:0.72rem;color:#505a63;line-height:1.45">{comment}</div>
+            </div>
+            """, unsafe_allow_html=True)
 
 
 engine = create_engine(
@@ -1594,7 +1657,6 @@ elif page == "生成报告":
             if reflection.get("pass"):
                 st.success("✅ 审查通过：报告论据完整，逻辑均衡")
             else:
-                # 用户选择了"继续深化"
                 st.success("✅ 深度分析完成：已根据审查意见补充研究")
 
         with st.expander(f"工具调用链（共 {len(st.session_state.get('gen_tool_calls', []))} 次）", expanded=False):
@@ -1602,6 +1664,23 @@ elif page == "生成报告":
                 lbl = _TOOL_LABELS.get(call["tool"], ("🔧", call["tool"]))
                 st.markdown(f"**{i}.** {lbl[0]} {lbl[1]}")
                 st.caption(_fmt_input_hint(call["tool"], call["input"]))
+
+        st.divider()
+
+        # ── 报告质量评估 ──
+        st.markdown('<div class="section-label">报告质量评估</div>', unsafe_allow_html=True)
+
+        eval_key = f"eval_{st.session_state.get('gen_report_id', 'draft')}"
+        if eval_key not in st.session_state:
+            if st.button("评估报告质量", key="eval_btn"):
+                with st.spinner("LLM 评估中（约15秒）..."):
+                    st.session_state[eval_key] = evaluate_report(
+                        report_content=st.session_state.gen_final,
+                        ticker=st.session_state.get("gen_ticker", ticker),
+                    )
+                st.rerun()
+        else:
+            _render_eval_scores(st.session_state[eval_key])
 
         st.divider()
         st.subheader("📄 分析报告")
@@ -1683,6 +1762,22 @@ elif page == "历史报告":
                 for i, call in enumerate(report["tool_calls"], 1):
                     st.markdown(f"**{i}.** `{call['tool']}`")
                     st.caption(json.dumps(call['input'], ensure_ascii=False)[:100])
+
+            st.divider()
+
+            # ── 历史报告质量评估 ──
+            st.markdown('<div class="section-label">报告质量评估</div>', unsafe_allow_html=True)
+            hist_eval_key = f"hist_eval_{report['id']}"
+            if hist_eval_key not in st.session_state:
+                if st.button("评估此报告质量", key=f"hist_eval_btn_{report['id']}"):
+                    with st.spinner("LLM 评估中（约15秒）..."):
+                        st.session_state[hist_eval_key] = evaluate_report(
+                            report_content=report["content"],
+                            ticker=report["ticker"],
+                        )
+                    st.rerun()
+            else:
+                _render_eval_scores(st.session_state[hist_eval_key])
 
             st.divider()
             st.markdown(report["content"])
