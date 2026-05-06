@@ -248,14 +248,7 @@ CREATE DATABASE investiq;
             st.rerun()
 
 
-# ── 检查是否需要显示向导 ──
-_setup_status = _check_setup()
-_needs_setup = not (_setup_status["env"] and _setup_status["db"])
-_explicitly_requested = st.session_state.get("_setup_done") is False  # 用户主动点击"初始化新标的"
-
-if _needs_setup or _explicitly_requested:
-    _render_setup_wizard()
-    st.stop()
+# 设置向导已禁用：直接进入应用
 
 
 # ══════════════════════════════════════════════════════
@@ -987,10 +980,6 @@ with st.sidebar:
             st.error(f"失败：{e}")
 
     st.markdown('<div style="height:1px;background:var(--line);margin:1rem 0"></div>', unsafe_allow_html=True)
-
-    if st.button("初始化新标的", use_container_width=True):
-        st.session_state._setup_done = False
-        st.rerun()
 
     # 底部数据来源说明
     st.markdown("""
