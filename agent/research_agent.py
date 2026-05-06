@@ -5,6 +5,7 @@ agent/research_agent.py — ReAct 投研 Agent（含反思循环）
 import os
 import sys
 import json
+import re
 from datetime import datetime
 from sqlalchemy import text
 from dotenv import load_dotenv
@@ -103,7 +104,24 @@ SYSTEM_PROMPT = """
 ## 交易建议
 （明确方向：看多/看空/中性 + 目标价区间 + 关键跟踪指标 + 止损条件）
 
-要求：每个结论必须有数据或新闻支撑，交易建议必须明确。
+## 决策摘要 (JSON)
+在报告末尾，输出一个独立的 ```json 代码块，严格遵循以下 schema 供前端解析（数值不要带千分位逗号）:
+```json
+{
+  "signal": "BUY" | "HOLD" | "SELL",
+  "score": 0-100 (整数, 表示信号置信度),
+  "target_price": "$XXX" 或 "$XXX-$YYY",
+  "stop_loss": "$XXX",
+  "horizon": "短线 / 中线 / 长线",
+  "thesis": "一句话核心论点 (≤60 字)",
+  "bull_points": ["看多点1", "看多点2", "看多点3"],
+  "bear_points": ["看空点1", "看空点2", "看空点3"],
+  "key_metrics": ["需跟踪指标1", "需跟踪指标2"],
+  "radar": {"基本面": 0-10, "成长性": 0-10, "估值": 0-10, "市场情绪": 0-10, "竞争格局": 0-10, "技术面": 0-10}
+}
+```
+
+要求：每个结论必须有数据或新闻支撑，交易建议必须明确，最末尾的 JSON 必须可被解析。
 """
 
 # ─────────────────────────────────────────────
@@ -138,6 +156,63 @@ VERDICT: PASS
 报告内容：
 {report_draft}
 """
+
+
+# ─────────────────────────────────────────────
+# 决策摘要解析（前端 render_signal_card 直接消费）
+# ─────────────────────────────────────────────
+
+def extract_decision(report_text: str) -> dict | None:
+    """
+    从报告末尾的 ```json 代码块解析结构化决策摘要。
+    返回 None 表示未找到或解析失败 —— 调用方应优雅降级（启发式回退或显示 "HOLD"）。
+    """
+    if not report_text:
+        return None
+    blocks = re.findall(r"```(?:json)?\s*(\{.*?\})\s*```", report_text, flags=re.DOTALL)
+    if not blocks:
+        return None
+    raw = blocks[-1].strip()
+    try:
+        data = json.loads(raw)
+    except Exception:
+        try:
+            data = json.loads(raw.replace("'", '"').replace(",\n}", "\n}").replace(",}", "}"))
+        except Exception:
+            return None
+
+    sig = str(data.get("signal", "HOLD")).upper().strip()
+    if sig not in ("BUY", "HOLD", "SELL"):
+        sig = "HOLD"
+    try:
+        score = int(data.get("score", 50))
+        score = max(0, min(100, score))
+    except Exception:
+        score = 50
+    return {
+        "signal": sig,
+        "score": score,
+        "target_price": str(data.get("target_price", "")),
+        "stop_loss": str(data.get("stop_loss", "")),
+        "horizon": str(data.get("horizon", "中线")),
+        "thesis": str(data.get("thesis", "")),
+        "bull_points": list(data.get("bull_points", []))[:5],
+        "bear_points": list(data.get("bear_points", []))[:5],
+        "key_metrics": list(data.get("key_metrics", []))[:6],
+        "radar": dict(data.get("radar", {})),
+    }
+
+
+def strip_decision_block(report_text: str) -> str:
+    """将报告末尾的 ```json 决策摘要代码块去掉，得到给用户阅读的 markdown。"""
+    if not report_text:
+        return report_text
+    return re.sub(
+        r"##\s*决策摘要[\s\S]*?```(?:json)?\s*\{[\s\S]*?\}\s*```\s*$",
+        "",
+        report_text,
+        flags=re.MULTILINE,
+    ).rstrip()
 
 
 def reflect_on_report(report_draft: str) -> dict:
@@ -274,6 +349,7 @@ def run_research_agent(question: str, ticker: str = "NVDA", use_reflection: bool
         "tool_calls": all_tool_calls,
         "report_id": report_id,
         "reflection": reflection_result,
+        "decision": extract_decision(final_report),
     }
 
 
@@ -320,7 +396,8 @@ def run_pass1(question: str, ticker: str, on_tool_call=None) -> dict:
     )
     draft = result["answer"]
     reflection = reflect_on_report(draft)
-    return {"draft": draft, "tool_calls": result["tool_calls"], "reflection": reflection}
+    return {"draft": draft, "tool_calls": result["tool_calls"], "reflection": reflection,
+            "decision": extract_decision(draft)}
 
 
 def run_pass2(draft: str, reflection: dict, ticker: str, tool_calls_so_far: list, on_tool_call=None) -> dict:
@@ -361,7 +438,8 @@ def run_pass2(draft: str, reflection: dict, ticker: str, tool_calls_so_far: list
             }
         ).fetchone()
         conn.commit()
-    return {"answer": final_report, "tool_calls": all_tool_calls, "report_id": row[0], "reflection": reflection}
+    return {"answer": final_report, "tool_calls": all_tool_calls, "report_id": row[0],
+            "reflection": reflection, "decision": extract_decision(final_report)}
 
 
 def save_report(ticker: str, question: str, content: str, tool_calls: list) -> int:
