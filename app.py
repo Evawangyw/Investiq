@@ -28,6 +28,8 @@ from app_components import (
     render_tape, render_quote_hero, render_kpi_strip, kpis_from_market,
     render_panel_open, render_panel_close, render_signal_card,
     render_status_bar, plotly_terminal_layout, TERMINAL_COLORS,
+    make_tool_stream_callback, render_static_tool_trace,
+    render_typewriter_report, render_decision_block, render_decision_radar,
 )
 
 
@@ -262,7 +264,8 @@ if _needs_setup or _explicitly_requested:
 
 from agent.research_agent import (
     run_research_agent, get_report_history, get_report_by_id,
-    run_pass1, run_pass2, save_report
+    run_pass1, run_pass2, save_report,
+    extract_decision, strip_decision_block,
 )
 from eval.report_evaluator import evaluate_report, EVAL_DIMENSIONS
 import plotly.graph_objects as go
@@ -1436,177 +1439,95 @@ elif page == "生成报告":
         use_reflection = st.toggle("深度分析模式", value=True)
     with col2:
         if use_reflection:
-            st.caption("✓ **深度模式**：初稿完成后，审查员 LLM 会找出论据缺口并让你决定是否继续补充研究")
+            st.caption("✓ **深度模式**：Agent 完成初稿后由第二个 LLM 审查论据完整性，自动补充研究")
         else:
             st.caption("⚡ **快速模式**：单轮直接输出报告（约30–60秒）")
 
-    # 工具名 → 中文动作描述（复用于两个阶段）
-    _TOOL_LABELS = {
-        "query_sec_filing":          ("📄 查询SEC财报",   "读取季报原始数据"),
-        "get_financial_factors":     ("📈 提取财务因子",  "计算营收/毛利率等关键指标"),
-        "compare_quarterly_factors": ("🔄 对比季度趋势",  "分析环比与同比变化"),
-        "get_recent_headlines":      ("📰 浏览近期新闻",  "了解最新市场事件"),
-        "search_news":               ("🔍 语义检索新闻",  "深挖特定话题相关报道"),
-        "compare_with_competitors":  ("⚔️ 竞品横向对比", "与同行对比盈利能力"),
-    }
-
-    def _fmt_input_hint(tool_name: str, tool_input: dict) -> str:
-        if tool_name == "search_news":
-            return f"搜索词：「{tool_input.get('query', '')}」"
-        if tool_name == "query_sec_filing":
-            return f"标的：{tool_input.get('ticker', '')}  类型：{tool_input.get('query_type', 'latest')}"
-        if tool_name == "compare_with_competitors":
-            return f"对比对象：{', '.join(tool_input.get('competitors', []))}"
-        if tool_name == "get_recent_headlines":
-            return f"标的：{tool_input.get('ticker', '')}，获取最新 {tool_input.get('n', 10)} 条标题"
-        return ""
-
-    def make_on_tool_call(log_box, log_lines, step_counter):
-        def on_tool_call(status, tool_name, tool_input, result):
-            step_counter[0] += 1
-            lbl = _TOOL_LABELS.get(tool_name, ("🔧", tool_name))
-            icon, action = lbl[0], lbl[1]
-            hint = _fmt_input_hint(tool_name, tool_input)
-            if status == "calling":
-                line = f"⏳ **步骤 {step_counter[0]}** · {icon} {action}  \n<small style='color:gray'>{hint}</small>"
-                log_lines.append(("calling", line, tool_name))
-            else:
-                for i in range(len(log_lines) - 1, -1, -1):
-                    if log_lines[i][0] == "calling" and log_lines[i][2] == tool_name:
-                        log_lines[i] = ("done", f"✅ **步骤 {step_counter[0]}** · {icon} {action}  \n<small style='color:gray'>{hint}</small>", tool_name)
-                        break
-            with log_box:
-                log_box.empty()
-                for _, line, _ in log_lines:
-                    st.markdown(line, unsafe_allow_html=True)
-        return on_tool_call
-
-    # ── 阶段状态机（用 session_state 跨 rerun 保持状态）──
-    # stage: "idle" | "running_p1" | "awaiting_approval" | "running_p2" | "done"
+    # ── 阶段状态机：idle → running → done ──
     if "gen_stage" not in st.session_state:
         st.session_state.gen_stage = "idle"
 
-    if st.session_state.gen_stage in ("idle", "done"):
-        if st.button("🚀 开始分析", type="primary", disabled=not question.strip(), key="gen_btn"):
-            st.session_state.gen_stage = "running_p1"
+    # ── Idle：展示生成按钮 ──
+    if st.session_state.gen_stage == "idle":
+        if st.button("🚀 生成 AI 投研报告", type="primary",
+                     disabled=not question.strip(), use_container_width=True):
+            st.session_state.gen_stage = "running"
             st.session_state.gen_question = question
             st.session_state.gen_ticker = ticker
             st.session_state.gen_use_reflection = use_reflection
             st.rerun()
 
-    # ── 阶段：运行第一轮 ──
-    if st.session_state.gen_stage == "running_p1":
+    # ── Running：调 Agent + 打字机动画，全程阻塞式执行 ──
+    elif st.session_state.gen_stage == "running":
         q = st.session_state.gen_question
         t = st.session_state.gen_ticker
-        do_reflect = st.session_state.gen_use_reflection
+        use_ref = st.session_state.gen_use_reflection
 
-        st.markdown("**第一阶段：Agent 数据收集与初稿**")
-        log_box = st.container(border=True)
-        log_lines, step_counter = [], [0]
-        on_tool_call = make_on_tool_call(log_box, log_lines, step_counter)
+        trace_slot = st.empty()
+        report_slot = st.empty()
 
+        on_call = make_tool_stream_callback(trace_slot)
         try:
-            p1 = run_pass1(q, t, on_tool_call=on_tool_call)
-            st.session_state.gen_draft = p1["draft"]
-            st.session_state.gen_tool_calls = p1["tool_calls"]
-            st.session_state.gen_reflection = p1["reflection"]
-
-            if do_reflect and not p1["reflection"].get("pass") and p1["reflection"].get("missing"):
-                st.session_state.gen_stage = "awaiting_approval"
-            else:
-                # 直接保存并展示
-                rid = save_report(t, q, p1["draft"], p1["tool_calls"])
-                st.session_state.gen_report_id = rid
-                st.session_state.gen_final = p1["draft"]
-                st.session_state.gen_stage = "done"
+            result = run_research_agent(
+                question=q, ticker=t,
+                use_reflection=use_ref,
+                on_tool_call=on_call,
+            )
         except Exception as e:
             import traceback
             st.error(f"生成失败：{e}")
             st.error(traceback.format_exc())
             st.session_state.gen_stage = "idle"
+            st.stop()
+
+        body_md = strip_decision_block(result["answer"])
+        render_typewriter_report(
+            report_slot, body_md,
+            eyebrow="AI · DEEP RESEARCH",
+            title=f"{t} · 多智能体投研报告",
+            right=f"工具 {len(result['tool_calls'])} 次 · 报告 ID {result['report_id']}",
+        )
+
+        decision = result.get("decision")
+        if decision:
+            col_l, col_r = st.columns([1.4, 1])
+            with col_l:
+                render_decision_block(decision)
+            with col_r:
+                render_decision_radar(decision, height=360)
+
+        st.session_state.gen_final = body_md
+        st.session_state.gen_decision = decision
+        st.session_state.gen_tool_calls = result["tool_calls"]
+        st.session_state.gen_report_id = result["report_id"]
+        st.session_state.gen_stage = "done"
         st.rerun()
 
-    # ── 阶段：等待用户确认 ──
-    if st.session_state.gen_stage == "awaiting_approval":
-        reflection = st.session_state.gen_reflection
-        missing = reflection.get("missing", [])
+    # ── Done：静态回放 ──
+    elif st.session_state.gen_stage == "done":
+        t = st.session_state.get("gen_ticker", ticker)
 
-        st.markdown("**第一阶段：已完成** ✅")
-        st.divider()
-        st.subheader("审查员意见")
-        st.warning(f"审查 LLM 发现 **{len(missing)}** 处论据不足，建议补充研究：")
-        for m in missing:
-            st.markdown(f"• {m}")
+        render_static_tool_trace(st.session_state.get("gen_tool_calls", []))
 
-        st.divider()
-        st.markdown("**请选择下一步操作：**")
-        c1, c2 = st.columns(2)
-        with c1:
-            if st.button("🔬 继续深化研究（推荐）", type="primary", use_container_width=True):
-                st.session_state.gen_stage = "running_p2"
-                st.rerun()
-        with c2:
-            if st.button("📄 直接使用初稿", use_container_width=True):
-                rid = save_report(
-                    st.session_state.gen_ticker,
-                    st.session_state.gen_question,
-                    st.session_state.gen_draft,
-                    st.session_state.gen_tool_calls
-                )
-                st.session_state.gen_report_id = rid
-                st.session_state.gen_final = st.session_state.gen_draft
-                st.session_state.gen_stage = "done"
-                st.rerun()
+        render_panel_open(
+            eyebrow="AI · DEEP RESEARCH",
+            title=f"{t} · 多智能体投研报告",
+            right=f"报告 ID {st.session_state.get('gen_report_id', '')}",
+        )
+        st.markdown(st.session_state.gen_final)
+        render_panel_close()
 
-        with st.expander("查看初稿内容"):
-            st.markdown(st.session_state.gen_draft)
-
-    # ── 阶段：运行第二轮 ──
-    if st.session_state.gen_stage == "running_p2":
-        st.markdown("**第二阶段：Agent 补充研究**")
-        log_box = st.container(border=True)
-        log_lines, step_counter = [], [0]
-        on_tool_call = make_on_tool_call(log_box, log_lines, step_counter)
-
-        try:
-            p2 = run_pass2(
-                draft=st.session_state.gen_draft,
-                reflection=st.session_state.gen_reflection,
-                ticker=st.session_state.gen_ticker,
-                tool_calls_so_far=st.session_state.gen_tool_calls,
-                on_tool_call=on_tool_call
-            )
-            st.session_state.gen_final = p2["answer"]
-            st.session_state.gen_report_id = p2["report_id"]
-            st.session_state.gen_tool_calls = p2["tool_calls"]
-            st.session_state.gen_stage = "done"
-        except Exception as e:
-            import traceback
-            st.error(f"第二阶段失败：{e}")
-            st.error(traceback.format_exc())
-            st.session_state.gen_stage = "awaiting_approval"
-        st.rerun()
-
-    # ── 阶段：展示最终报告 ──
-    if st.session_state.gen_stage == "done":
-        reflection = st.session_state.get("gen_reflection")
-        if reflection:
-            if reflection.get("pass"):
-                st.success("✅ 审查通过：报告论据完整，逻辑均衡")
-            else:
-                st.success("✅ 深度分析完成：已根据审查意见补充研究")
-
-        with st.expander(f"工具调用链（共 {len(st.session_state.get('gen_tool_calls', []))} 次）", expanded=False):
-            for i, call in enumerate(st.session_state.get("gen_tool_calls", []), 1):
-                lbl = _TOOL_LABELS.get(call["tool"], ("🔧", call["tool"]))
-                st.markdown(f"**{i}.** {lbl[0]} {lbl[1]}")
-                st.caption(_fmt_input_hint(call["tool"], call["input"]))
+        decision = st.session_state.get("gen_decision")
+        if decision:
+            st.markdown('<div style="font-size:10.5px;letter-spacing:.2em;color:var(--text-3);text-transform:uppercase;margin:1.5rem 0 .5rem">决策摘要</div>', unsafe_allow_html=True)
+            col_l, col_r = st.columns([1.4, 1])
+            with col_l:
+                render_decision_block(decision)
+            with col_r:
+                render_decision_radar(decision, height=360)
 
         st.divider()
-
-        # ── 报告质量评估 ──
         st.markdown('<div style="font-size:10.5px;letter-spacing:.2em;color:var(--text-3);text-transform:uppercase;margin:1rem 0 .5rem">报告质量评估</div>', unsafe_allow_html=True)
-
         eval_key = f"eval_{st.session_state.get('gen_report_id', 'draft')}"
         if eval_key not in st.session_state:
             if st.button("评估报告质量", key="eval_btn"):
@@ -1620,24 +1541,9 @@ elif page == "生成报告":
             _render_eval_scores(st.session_state[eval_key])
 
         st.divider()
-
-        render_signal_card(
-            signal="BUY",
-            score=87,
-            summary="基于最新财报数据与竞品对比综合研判，基本面稳健，建议关注估值与宏观风险。",
-            target="",
-            stop="",
-        )
-
-        render_panel_open(eyebrow="AI · DEEP RESEARCH",
-                          title="多智能体投研报告",
-                          right=f"生成于 {datetime.now():%Y-%m-%d %H:%M}")
-        st.markdown(st.session_state.gen_final)
-        render_panel_close()
-
         if st.button("🔄 重新分析", use_container_width=False):
             st.session_state.gen_stage = "idle"
-            for k in ["gen_draft", "gen_tool_calls", "gen_reflection", "gen_final", "gen_report_id"]:
+            for k in ["gen_final", "gen_decision", "gen_tool_calls", "gen_report_id"]:
                 st.session_state.pop(k, None)
             st.rerun()
 
@@ -1702,17 +1608,33 @@ elif page == "历史报告":
 
     # 展示选中报告
     if selected_id:
-        from agent.research_agent import get_report_by_id
         report = get_report_by_id(selected_id)
         if report:
             st.divider()
-            st.subheader(f"报告 #{report['id']}  ·  {report['ticker']}")
-            st.caption(f"生成时间：{report['created_at'][:16]}  ·  问题：{report['question']}")
 
-            with st.expander(f"工具调用链（{len(report['tool_calls'])} 次）"):
-                for i, call in enumerate(report["tool_calls"], 1):
-                    st.markdown(f"**{i}.** `{call['tool']}`")
-                    st.caption(json.dumps(call['input'], ensure_ascii=False)[:100])
+            body_md = strip_decision_block(report["content"])
+            decision = extract_decision(report["content"])
+
+            # 工具调用回放
+            render_static_tool_trace(report.get("tool_calls", []))
+
+            # 报告正文
+            render_panel_open(
+                eyebrow="AI · DEEP RESEARCH",
+                title=f"{report['ticker']} · 历史报告",
+                right=f"报告 ID {report['id']} · {report['created_at'][:16]}",
+            )
+            st.markdown(body_md)
+            render_panel_close()
+
+            # 决策摘要 + 雷达图
+            if decision:
+                st.markdown('<div style="font-size:10.5px;letter-spacing:.2em;color:var(--text-3);text-transform:uppercase;margin:1.5rem 0 .5rem">决策摘要</div>', unsafe_allow_html=True)
+                col_l, col_r = st.columns([1.4, 1])
+                with col_l:
+                    render_decision_block(decision)
+                with col_r:
+                    render_decision_radar(decision, height=360)
 
             st.divider()
 
@@ -1723,15 +1645,12 @@ elif page == "历史报告":
                 if st.button("评估此报告质量", key=f"hist_eval_btn_{report['id']}"):
                     with st.spinner("LLM 评估中（约15秒）..."):
                         st.session_state[hist_eval_key] = evaluate_report(
-                            report_content=report["content"],
+                            report_content=body_md,
                             ticker=report["ticker"],
                         )
                     st.rerun()
             else:
                 _render_eval_scores(st.session_state[hist_eval_key])
-
-            st.divider()
-            st.markdown(report["content"])
 # ════════════════════════════════
 # 新闻概览
 # ════════════════════════════════
