@@ -101,17 +101,18 @@ def agent_chat(question: str, tools: list[dict], tool_executor, system: str = ""
                 tool_name = block.name
                 tool_input = block.input
                 print(f"  → 调用工具: {tool_name}，参数: {json.dumps(tool_input, ensure_ascii=False)}")
-                if on_tool_call: on_tool_call("calling", tool_name, tool_input, None)
-                
+                if on_tool_call: on_tool_call("start", {"tool": tool_name, "input": tool_input})
+
                 # 真正执行工具
                 try:
                     result = tool_executor(tool_name, tool_input)
                     result_str = json.dumps(result, ensure_ascii=False) if isinstance(result, (dict, list)) else str(result)
+                    if on_tool_call: on_tool_call("end", {"tool": tool_name, "output": result_str})
                 except Exception as e:
                     result_str = f"工具执行出错: {str(e)}"
-                
+                    if on_tool_call: on_tool_call("error", {"tool": tool_name, "error": str(e)})
+
                 print(f"  ← 结果: {result_str[:100]}...")
-                if on_tool_call: on_tool_call("done", tool_name, tool_input, result_str)
                 
                 tool_call_log.append({
                     "tool": tool_name,
