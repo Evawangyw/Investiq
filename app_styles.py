@@ -33,6 +33,11 @@ html, body, [class*="css"] {
 .block-container { padding-top:.5rem; padding-bottom:3rem; max-width:1480px; }
 [data-testid="stAppViewContainer"] { background:var(--bg-0); }
 [data-testid="stAppViewContainer"] > section > div:first-child { padding-top:0; }
+[data-testid="stHeader"] {
+  background:var(--bg-0) !important;
+  border-bottom:1px solid var(--line) !important;
+}
+[data-testid="stToolbar"] { filter: invert(1) brightness(0.6); }
 
 .stApp::before {
   content:""; position:fixed; inset:0; pointer-events:none; z-index:0;
