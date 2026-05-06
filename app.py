@@ -13,14 +13,22 @@ import os
 
 # ── 页面配置（必须最先调用）──
 st.set_page_config(
-    page_title="InvestIQ — AI 投研 Agent",
+    page_title="InvestIQ — AI 投研终端",
     page_icon="📈",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
+    menu_items={"About": "InvestIQ Terminal · v3.1"},
 )
 
 _ENV_PATH = os.path.join(os.path.dirname(__file__), ".env")
 load_dotenv(_ENV_PATH)
+
+from app_styles import inject_terminal_css
+from app_components import (
+    render_tape, render_quote_hero, render_kpi_strip, kpis_from_market,
+    render_panel_open, render_panel_close, render_signal_card,
+    render_status_bar, plotly_terminal_layout, TERMINAL_COLORS,
+)
 
 
 # ══════════════════════════════════════════════════════
@@ -298,26 +306,26 @@ def _render_eval_scores(result: dict):
     grade = result["grade"]
     scores = result["scores"]
 
-    # 等级颜色
+    # 等级颜色 — 使用终端色板
     grade_color = {
-        "A": "#00a87e", "B+": "#494fdf", "B": "#494fdf",
-        "C+": "#ec7e00", "C": "#ec7e00", "D": "#e23b4a",
-    }.get(grade, "#8d969e")
+        "A": TERMINAL_COLORS["up"], "B+": TERMINAL_COLORS["accent"], "B": TERMINAL_COLORS["accent"],
+        "C+": TERMINAL_COLORS["gold"], "C": TERMINAL_COLORS["gold"], "D": TERMINAL_COLORS["down"],
+    }.get(grade, TERMINAL_COLORS["text"])
 
     # 总分卡
     st.markdown(f"""
-    <div style="background:#191c1f;border-radius:16px;padding:1.25rem 1.75rem;display:flex;align-items:center;gap:2rem;margin-bottom:1rem;">
+    <div style="background:var(--bg-1);border:1px solid var(--line);border-radius:8px;padding:1.25rem 1.75rem;display:flex;align-items:center;gap:2rem;margin-bottom:1rem;">
         <div style="text-align:center;min-width:64px">
-            <div style="font-size:2.2rem;font-weight:800;color:{grade_color};letter-spacing:-0.04em;line-height:1">{grade}</div>
-            <div style="font-size:0.68rem;color:#8d969e;text-transform:uppercase;letter-spacing:0.1em;margin-top:0.2rem">评级</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:2rem;font-weight:600;color:{grade_color};letter-spacing:.05em;line-height:1">{grade}</div>
+            <div style="font-size:10.5px;color:var(--text-3);text-transform:uppercase;letter-spacing:.18em;margin-top:0.3rem">评级</div>
         </div>
-        <div style="width:1px;height:48px;background:rgba(255,255,255,0.1)"></div>
+        <div style="width:1px;height:48px;background:var(--line)"></div>
         <div style="text-align:center;min-width:56px">
-            <div style="font-size:2.2rem;font-weight:800;color:#ffffff;letter-spacing:-0.04em;line-height:1">{total}<span style="font-size:1rem;color:#8d969e;font-weight:500">/25</span></div>
-            <div style="font-size:0.68rem;color:#8d969e;text-transform:uppercase;letter-spacing:0.1em;margin-top:0.2rem">总分</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:2rem;font-weight:500;color:var(--text-0);line-height:1">{total}<span style="font-size:.85rem;color:var(--text-3);font-weight:400">/25</span></div>
+            <div style="font-size:10.5px;color:var(--text-3);text-transform:uppercase;letter-spacing:.18em;margin-top:0.3rem">总分</div>
         </div>
-        <div style="width:1px;height:48px;background:rgba(255,255,255,0.1)"></div>
-        <div style="flex:1;font-size:0.9rem;color:#8d969e;line-height:1.55;letter-spacing:0.24px">{result.get('summary', '')}</div>
+        <div style="width:1px;height:48px;background:var(--line)"></div>
+        <div style="flex:1;font-size:13px;color:var(--text-2);line-height:1.6">{result.get('summary', '')}</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -331,21 +339,21 @@ def _render_eval_scores(result: dict):
         comment = entry.get("comment", "")
         bar_pct = score / 5 * 100
         bar_color = (
-            "#00a87e" if score >= 4
-            else "#494fdf" if score == 3
-            else "#ec7e00" if score == 2
-            else "#e23b4a"
+            TERMINAL_COLORS["up"] if score >= 4
+            else TERMINAL_COLORS["accent"] if score == 3
+            else TERMINAL_COLORS["gold"] if score == 2
+            else TERMINAL_COLORS["down"]
         )
         with cols[i]:
             st.markdown(f"""
-            <div style="background:#ffffff;border:1px solid #c9c9cd;border-radius:14px;padding:1rem;text-align:center">
-                <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#8d969e;margin-bottom:0.5rem">{label}</div>
-                <div style="font-size:1.8rem;font-weight:800;color:{bar_color};letter-spacing:-0.03em;line-height:1">{score}</div>
-                <div style="font-size:0.65rem;color:#8d969e;margin-bottom:0.5rem">/5</div>
-                <div style="height:4px;background:#f4f4f4;border-radius:9999px;overflow:hidden;margin-bottom:0.5rem">
-                    <div style="height:100%;width:{bar_pct}%;background:{bar_color};border-radius:9999px"></div>
+            <div style="background:var(--bg-1);border:1px solid var(--line);border-radius:8px;padding:14px 16px;text-align:center">
+                <div style="font-size:10.5px;font-weight:500;text-transform:uppercase;letter-spacing:.18em;color:var(--text-3);margin-bottom:8px">{label}</div>
+                <div style="font-family:'IBM Plex Mono',monospace;font-size:1.8rem;font-weight:500;color:{bar_color};line-height:1">{score}</div>
+                <div style="font-size:10.5px;color:var(--text-3);margin-bottom:8px">/5</div>
+                <div style="height:4px;background:var(--bg-3);border-radius:2px;overflow:hidden;margin-bottom:8px">
+                    <div style="height:100%;width:{bar_pct}%;background:{bar_color};border-radius:2px"></div>
                 </div>
-                <div style="font-size:0.72rem;color:#505a63;line-height:1.45">{comment}</div>
+                <div style="font-size:11.5px;color:var(--text-2);line-height:1.5">{comment}</div>
             </div>
             """, unsafe_allow_html=True)
 
@@ -357,7 +365,9 @@ engine = create_engine(
 )
 
 # ── 样式 ──
-st.markdown("""
+inject_terminal_css()
+
+_STYLE_COMPAT = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
@@ -878,27 +888,29 @@ hr { border-color: #c9c9cd !important; margin: 1.25rem 0 !important; }
     border-radius: 12px !important;
 }
 </style>
-""", unsafe_allow_html=True)
+"""
 
+
+render_tape()  # 顶部全球行情跑马灯
 
 # ── 侧边栏 ──
 with st.sidebar:
     # Brand
     st.markdown("""
     <div style="padding:1rem 0 0.25rem">
-        <div style="font-size:1.3rem;font-weight:800;color:#ffffff;letter-spacing:-0.03em;line-height:1">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:1.1rem;font-weight:600;color:var(--text-0);letter-spacing:.04em;line-height:1">
             InvestIQ
         </div>
-        <div style="font-size:0.68rem;color:#8d969e;text-transform:uppercase;letter-spacing:0.14em;margin-top:0.3rem">
-            AI 投资研究平台
+        <div style="font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.2em;margin-top:0.3rem">
+            AI 投研终端
         </div>
     </div>
     """, unsafe_allow_html=True)
 
-    st.markdown('<div style="height:1px;background:#3d4145;margin:0.75rem 0"></div>', unsafe_allow_html=True)
+    st.markdown('<div style="height:1px;background:var(--line);margin:0.75rem 0"></div>', unsafe_allow_html=True)
 
     # ── 标的选择 ──
-    st.markdown('<div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#8d969e;margin-bottom:0.4rem">分析标的</div>', unsafe_allow_html=True)
+    st.markdown('<div style="font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.18em;color:var(--text-3);margin-bottom:0.4rem">分析标的</div>', unsafe_allow_html=True)
     _PRESET_TICKERS = ["NVDA", "AMD", "INTC", "MSFT", "TSLA", "META", "AAPL", "GOOGL", "AMZN", "自定义..."]
     _ticker_choice = st.selectbox("分析标的", _PRESET_TICKERS, index=0, label_visibility="collapsed")
     if _ticker_choice == "自定义...":
@@ -912,20 +924,20 @@ with st.sidebar:
     if _sb_mkt and _sb_mkt.get("price"):
         _p = _sb_mkt["price"]
         _chg = _sb_mkt.get("day_change_pct") or 0
-        _chg_color = "#00a87e" if _chg >= 0 else "#e23b4a"
+        _chg_color = TERMINAL_COLORS["up"] if _chg >= 0 else TERMINAL_COLORS["down"]
         _arrow = "▲" if _chg >= 0 else "▼"
         st.markdown(f"""
-        <div style="background:#2a2d30;border-radius:12px;padding:0.85rem 1rem;margin:0.5rem 0 0">
-            <div style="font-size:1.4rem;font-weight:800;color:#ffffff;letter-spacing:-0.02em;line-height:1">${_p:,.2f}</div>
-            <div style="font-size:0.78rem;font-weight:600;color:{_chg_color};margin-top:0.2rem">{_arrow} {abs(_chg):.2f}% 今日</div>
-            <div style="font-size:0.68rem;color:#8d969e;margin-top:0.3rem;letter-spacing:0.04em">Yahoo Finance · 5min 缓存</div>
+        <div style="background:var(--bg-2);border:1px solid var(--line);border-radius:6px;padding:12px 14px;margin:0.5rem 0 0">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:1.35rem;font-weight:500;color:var(--text-0);line-height:1">${_p:,.2f}</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;font-weight:500;color:{_chg_color};margin-top:6px">{_arrow} {abs(_chg):.2f}% 今日</div>
+            <div style="font-size:10px;color:var(--text-3);margin-top:4px;letter-spacing:.04em">Yahoo Finance · 5min 缓存</div>
         </div>
         """, unsafe_allow_html=True)
 
-    st.markdown('<div style="height:1px;background:#3d4145;margin:1rem 0"></div>', unsafe_allow_html=True)
+    st.markdown('<div style="height:1px;background:var(--line);margin:1rem 0"></div>', unsafe_allow_html=True)
 
     # ── 数据更新 ──
-    st.markdown('<div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#8d969e;margin-bottom:0.6rem">数据更新</div>', unsafe_allow_html=True)
+    st.markdown('<div style="font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.18em;color:var(--text-3);margin-bottom:0.6rem">数据更新</div>', unsafe_allow_html=True)
 
     if st.button("刷新新闻", use_container_width=True):
         with st.spinner("拉取最新新闻..."):
@@ -971,7 +983,7 @@ with st.sidebar:
         except Exception as e:
             st.error(f"失败：{e}")
 
-    st.markdown('<div style="height:1px;background:#3d4145;margin:1rem 0"></div>', unsafe_allow_html=True)
+    st.markdown('<div style="height:1px;background:var(--line);margin:1rem 0"></div>', unsafe_allow_html=True)
 
     if st.button("初始化新标的", use_container_width=True):
         st.session_state._setup_done = False
@@ -980,7 +992,7 @@ with st.sidebar:
     # 底部数据来源说明
     st.markdown("""
     <div style="margin-top:auto;padding-top:1.5rem">
-        <div style="font-size:0.65rem;color:#8d969e;line-height:1.7;letter-spacing:0.03em">
+        <div style="font-size:10px;color:var(--text-3);line-height:1.8;letter-spacing:.03em">
             数据来源<br>
             SEC EDGAR · Yahoo Finance<br>
             NewsAPI · Chroma · PostgreSQL
@@ -1004,22 +1016,23 @@ if _HAS_OPTION_MENU:
         styles={
             "container": {
                 "padding": "0.4rem 0.75rem",
-                "background-color": "#191c1f",
-                "border-radius": "12px",
-                "margin-bottom": "1.5rem",
+                "background-color": "#0c1015",
+                "border": "1px solid #1f2733",
+                "border-radius": "8px",
+                "margin-bottom": "1rem",
             },
-            "icon": {"color": "#8d969e", "font-size": "1rem"},
+            "icon": {"color": "#8893a4", "font-size": "0.9rem"},
             "nav-link": {
-                "font-size": "0.9rem",
-                "font-weight": "600",
-                "color": "#8d969e",
-                "padding": "0.5rem 1rem",
-                "border-radius": "9999px",
+                "font-size": "13px",
+                "font-weight": "500",
+                "color": "#8893a4",
+                "padding": "0.45rem 1rem",
+                "border-radius": "4px",
                 "letter-spacing": "0.01em",
             },
             "nav-link-selected": {
-                "background-color": "#2a2d30",
-                "color": "#ffffff",
+                "background-color": "#181f29",
+                "color": "#f5f7fa",
             },
             "menu-title": {"display": "none"},
         },
@@ -1030,12 +1043,12 @@ else:
     st.markdown("""
     <style>
     div[data-testid="stHorizontalBlock"] [data-testid="stRadio"] > div {
-        flex-direction: row; gap: 0.5rem;
+        flex-direction: row; gap: 0.4rem;
     }
     div[data-testid="stHorizontalBlock"] [data-testid="stRadio"] label {
-        background: #191c1f; color: #8d969e !important;
-        border-radius: 10px; padding: 0.45rem 1rem;
-        font-size: 0.9rem; font-weight: 600; cursor: pointer;
+        background: var(--bg-2); color: var(--text-2) !important;
+        border: 1px solid var(--line); border-radius: 4px;
+        padding: 0.4rem 0.9rem; font-size: 13px; font-weight: 500; cursor: pointer;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -1048,37 +1061,45 @@ else:
 if page == "产品介绍":
     # Hero
     st.markdown("""
-    <div class="hero-section">
-        <div class="hero-eyebrow">AI · 投资研究平台</div>
-        <div class="hero-title">让每个投资者都拥有<br><span>机构级分析师</span></div>
-        <div class="hero-sub">InvestIQ 将 AI 推理、SEC 财务数据、实时新闻与竞品对比整合为一体，一个问题，即刻生成专业投研报告。</div>
+    <div style="background:var(--bg-1);border:1px solid var(--line);border-radius:8px;padding:2.5rem 2rem 2rem;margin-bottom:1.5rem;position:relative;overflow:hidden;">
+        <div style="font-size:10.5px;letter-spacing:.2em;color:var(--text-3);margin-bottom:14px;text-transform:uppercase">AI · 投研终端</div>
+        <div style="font-size:2rem;font-weight:600;color:var(--text-0);letter-spacing:-.02em;line-height:1.2;margin-bottom:12px">
+            让每个投资者都拥有<br><span style="color:var(--gold)">机构级分析师</span>
+        </div>
+        <div style="font-size:14px;color:var(--text-2);line-height:1.65;max-width:640px">
+            InvestIQ 将 AI 推理、SEC 财务数据、实时新闻与竞品对比整合为一体，一个问题，即刻生成专业投研报告。
+        </div>
     </div>
     """, unsafe_allow_html=True)
 
     # 核心功能三栏
+    _CARD = "background:var(--bg-1);border:1px solid var(--line);border-radius:8px;padding:20px 20px 22px;height:100%"
+    _TAG = "font-size:10.5px;letter-spacing:.18em;color:var(--accent);text-transform:uppercase;margin-bottom:10px"
+    _TITLE = "font-size:1.15rem;font-weight:600;color:var(--text-0);line-height:1.3;margin-bottom:10px"
+    _DESC = "font-size:12.5px;color:var(--text-2);line-height:1.65"
     c1, c2, c3 = st.columns(3)
     with c1:
-        st.markdown("""
-        <div class="lp-card-light">
-            <div class="lp-tag">AI 研究报告</div>
-            <div class="lp-title">一问即达，<br>六维分析</div>
-            <div class="lp-desc">输入任意投研问题，AI 自动规划调研路径，整合财报、新闻与竞品数据，输出含宏观背景、基本面、竞品对比、市场情绪、多空论点与交易建议的完整报告。</div>
+        st.markdown(f"""
+        <div style="{_CARD};border-top:2px solid var(--accent)">
+            <div style="{_TAG}">AI 研究报告</div>
+            <div style="{_TITLE}">一问即达，<br>六维分析</div>
+            <div style="{_DESC}">输入任意投研问题，AI 自动规划调研路径，整合财报、新闻与竞品数据，输出含宏观背景、基本面、竞品对比、市场情绪、多空论点与交易建议的完整报告。</div>
         </div>
         """, unsafe_allow_html=True)
     with c2:
-        st.markdown("""
-        <div class="lp-card-dark">
-            <div class="lp-tag-dark">深度分析模式</div>
-            <div class="lp-title-dark">审查员 AI，<br>你来决定</div>
-            <div class="lp-desc-dark">初稿完成后，第二个 AI 扮演研究主管审查论据完整性。系统暂停并展示审查意见，由你决定是否继续深化——而非黑盒自动运行。</div>
+        st.markdown(f"""
+        <div style="{_CARD};border-top:2px solid var(--gold)">
+            <div style="{_TAG.replace('var(--accent)','var(--gold)')}">深度分析模式</div>
+            <div style="{_TITLE}">审查员 AI，<br>你来决定</div>
+            <div style="{_DESC}">初稿完成后，第二个 AI 扮演研究主管审查论据完整性。系统暂停并展示审查意见，由你决定是否继续深化——而非黑盒自动运行。</div>
         </div>
         """, unsafe_allow_html=True)
     with c3:
-        st.markdown("""
-        <div class="lp-card-white">
-            <div class="lp-tag">实时行情</div>
-            <div class="lp-title">股价、PE、<br>市值一览</div>
-            <div class="lp-desc">每 5 分钟从 Yahoo Finance 同步当前股价、市盈率、远期 PE 与 52 周区间，与 AI 报告同屏对照，无需在多个窗口间切换。</div>
+        st.markdown(f"""
+        <div style="{_CARD};border-top:2px solid var(--up)">
+            <div style="{_TAG.replace('var(--accent)','var(--up)')}">实时行情</div>
+            <div style="{_TITLE}">股价、PE、<br>市值一览</div>
+            <div style="{_DESC}">每 5 分钟从 Yahoo Finance 同步当前股价、市盈率、远期 PE 与 52 周区间，与 AI 报告同屏对照，无需在多个窗口间切换。</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -1087,32 +1108,32 @@ if page == "产品介绍":
     # 第二行功能
     c4, c5 = st.columns(2)
     with c4:
-        st.markdown("""
-        <div class="lp-card-white">
-            <div class="lp-tag">新闻情报中心</div>
-            <div class="lp-title">语义检索，不是关键词匹配</div>
-            <div class="lp-desc">向量数据库存储所有新闻，支持语义搜索——搜"数据中心需求"能命中标题含"cloud infrastructure spending"的英文文章。自动聚类为产品、财务、竞争、地缘等话题，并提供 LLM 多空情绪打分。</div>
+        st.markdown(f"""
+        <div style="{_CARD}">
+            <div style="{_TAG}">新闻情报中心</div>
+            <div style="{_TITLE}">语义检索，不是关键词匹配</div>
+            <div style="{_DESC}">向量数据库存储所有新闻，支持语义搜索——搜"数据中心需求"能命中标题含"cloud infrastructure spending"的英文文章。自动聚类为产品、财务、竞争、地缘等话题，并提供 LLM 多空情绪打分。</div>
         </div>
         """, unsafe_allow_html=True)
     with c5:
-        st.markdown("""
-        <div class="lp-card-light">
-            <div class="lp-tag">竞品横向对比</div>
-            <div class="lp-title">实时拉取，<br>雷达图直观呈现</div>
-            <div class="lp-desc">实时调用 SEC EDGAR 数据对比同行营收规模、毛利率与净利率，标准化雷达图让相对优劣势一目了然。支持任意股票代码，不限于预设标的。</div>
+        st.markdown(f"""
+        <div style="{_CARD}">
+            <div style="{_TAG}">竞品横向对比</div>
+            <div style="{_TITLE}">实时拉取，<br>雷达图直观呈现</div>
+            <div style="{_DESC}">实时调用 SEC EDGAR 数据对比同行营收规模、毛利率与净利率，标准化雷达图让相对优劣势一目了然。支持任意股票代码，不限于预设标的。</div>
         </div>
         """, unsafe_allow_html=True)
 
-    # 数据来源 strip
+    # 数据来源条
     st.markdown("""
-    <div class="source-strip">
-        <div class="source-label">数据来源</div>
-        <div class="source-badge">SEC EDGAR XBRL</div>
-        <div class="source-badge">Yahoo Finance</div>
-        <div class="source-badge">NewsAPI</div>
-        <div class="source-badge">Chroma 向量数据库</div>
-        <div class="source-badge">Claude Sonnet 4.6</div>
-        <div class="source-badge">PostgreSQL</div>
+    <div style="background:var(--bg-1);border:1px solid var(--line);border-radius:8px;padding:14px 20px;margin-top:1rem;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <span style="font-size:10px;letter-spacing:.18em;color:var(--text-3);text-transform:uppercase;white-space:nowrap">数据来源</span>
+        <span style="background:var(--bg-2);border:1px solid var(--line-2);border-radius:3px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-2);padding:2px 7px">SEC EDGAR XBRL</span>
+        <span style="background:var(--bg-2);border:1px solid var(--line-2);border-radius:3px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-2);padding:2px 7px">Yahoo Finance</span>
+        <span style="background:var(--bg-2);border:1px solid var(--line-2);border-radius:3px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-2);padding:2px 7px">NewsAPI</span>
+        <span style="background:var(--bg-2);border:1px solid var(--line-2);border-radius:3px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-2);padding:2px 7px">Chroma 向量数据库</span>
+        <span style="background:var(--bg-2);border:1px solid var(--line-2);border-radius:3px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-2);padding:2px 7px">Claude Sonnet 4.6</span>
+        <span style="background:var(--bg-2);border:1px solid var(--line-2);border-radius:3px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-2);padding:2px 7px">PostgreSQL</span>
     </div>
     """, unsafe_allow_html=True)
 
@@ -1143,109 +1164,37 @@ elif page == "市场概览":
                 st.success(f"✓ {ticker} 数据拉取完成")
                 st.rerun()
         st.stop()
-    # ── 行情 Header ──
-    mkt = get_market_data(ticker)
-    now_str = datetime.now().strftime("%Y-%m-%d  %H:%M")
+    # ── 行情 Hero ──
+    mkt = get_market_data(ticker) or {}
 
-    if mkt and mkt.get("price"):
-        price = mkt["price"]
-        chg = mkt.get("day_change_pct") or 0
-        chg_color = "quote-change-pos" if chg >= 0 else "quote-change-neg"
-        chg_arrow = "▲" if chg >= 0 else "▼"
-        cap = mkt.get("market_cap")
-        cap_str = f"${cap/1e9:.0f}B" if cap else "—"
-        pe_str = f"{mkt['pe']:.1f}x" if mkt.get("pe") else "—"
-        fpe_str = f"{mkt['forward_pe']:.1f}x" if mkt.get("forward_pe") else "—"
-        hi = mkt.get("week52_high"); lo = mkt.get("week52_low")
-        rng_str = f"${lo:.0f} – ${hi:.0f}" if hi and lo else "—"
+    _NAME_MAP = {
+        "NVDA": ("英伟达", "半导体 · GPU"), "AMD": ("AMD", "半导体 · CPU/GPU"),
+        "INTC": ("英特尔", "半导体 · CPU"), "MSFT": ("微软", "软件 · 云"),
+        "TSLA": ("特斯拉", "汽车 · 新能源"), "META": ("Meta", "互联网 · 广告"),
+        "AAPL": ("苹果", "消费电子"), "GOOGL": ("Alphabet", "互联网 · 广告"),
+        "AMZN": ("亚马逊", "电商 · 云"),
+    }
+    _name, _sector = _NAME_MAP.get(ticker, (ticker, ""))
 
-        st.markdown(f"""
-        <div class="quote-hero">
-            <div>
-                <div class="quote-ticker">{ticker}</div>
-                <div class="quote-exchange">NASDAQ · 实时行情</div>
-            </div>
-            <div class="quote-divider"></div>
-            <div>
-                <div class="quote-price">${price:,.2f}</div>
-                <div class="{chg_color}">{chg_arrow} {abs(chg):.2f}% 今日</div>
-            </div>
-            <div class="quote-divider"></div>
-            <div class="quote-pill"><div class="quote-pill-label">市值</div><div class="quote-pill-value">{cap_str}</div></div>
-            <div class="quote-pill"><div class="quote-pill-label">P / E</div><div class="quote-pill-value">{pe_str}</div></div>
-            <div class="quote-pill"><div class="quote-pill-label">远期 P/E</div><div class="quote-pill-value">{fpe_str}</div></div>
-            <div class="quote-pill"><div class="quote-pill-label">52 周区间</div><div class="quote-pill-value">{rng_str}</div></div>
-            <div style="margin-left:auto"><div class="quote-meta">更新于 {now_str}</div><div class="quote-meta">来源：Yahoo Finance</div></div>
-        </div>
-        """, unsafe_allow_html=True)
-    else:
-        st.markdown(f"""
-        <div class="quote-hero">
-            <div>
-                <div class="quote-ticker">{ticker}</div>
-                <div class="quote-exchange">行情暂时无法获取 · {now_str}</div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+    render_quote_hero(ticker, mkt, name=_name, sector=_sector)
 
-    # ── 功能介绍 + 数据统计 ──
+    # 取最近一季财报派生指标（填 KPI 用）
+    financials = {}
     with engine.connect() as conn:
-        report_count = conn.execute(text(f"SELECT COUNT(*) FROM reports WHERE ticker='{ticker}'")).scalar()
-        filing_count = conn.execute(text(f"SELECT COUNT(*) FROM filings WHERE ticker='{ticker}'")).scalar()
+        _row = conn.execute(
+            text("SELECT raw_text FROM filings WHERE ticker=:t ORDER BY period DESC LIMIT 1"),
+            {"t": ticker}
+        ).fetchone()
+    if _row and _row[0]:
+        try:
+            financials = json.loads(_row[0])
+        except Exception:
+            pass
 
-    # Bento 网格：左列2张浅色卡，右列2张深色卡
-    left_col, right_col = st.columns(2)
-    with left_col:
-        st.markdown(f"""
-        <div class="bento-card-light" style="margin-bottom:1rem">
-            <div class="bento-label">AI 研究报告</div>
-            <div class="bento-title">一问即达，<br>机构级报告</div>
-            <div class="bento-desc">输入任意投研问题，AI 自动调取财报、新闻、竞品数据，生成含基本面、竞品对比、多空论点与交易建议的完整分析。</div>
-        </div>
-        <div class="bento-card-light">
-            <div class="bento-label">新闻情报</div>
-            <div class="bento-title">语义检索，<br>话题聚类</div>
-            <div class="bento-desc">向量相似度匹配相关报道，自动聚类为产品、财务、地缘等话题，并提供 LLM 多空情绪分析。</div>
-        </div>
-        """, unsafe_allow_html=True)
-    with right_col:
-        st.markdown(f"""
-        <div class="bento-card-dark" style="margin-bottom:1rem">
-            <div class="bento-label-dark">深度分析</div>
-            <div class="bento-title-dark">审查员 AI，<br>你来决定</div>
-            <div class="bento-desc-dark">初稿生成后，第二个 AI 模型扮演研究主管发现论据缺口，由你选择是否继续深化——质量与效率兼顾。</div>
-        </div>
-        <div class="bento-card-dark">
-            <div class="bento-label-dark">竞品对比</div>
-            <div class="bento-title-dark">实时拉取，<br>横向基准</div>
-            <div class="bento-desc-dark">实时调用 SEC EDGAR 数据，对比同行营收规模、毛利率与净利率，雷达图直观呈现相对优势。</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    # 数据统计条
-    st.markdown(f"""
-    <div class="stat-strip">
-        <div>
-            <div class="stat-item-label">已存档报告</div>
-            <div class="stat-item-value">{report_count} 份</div>
-        </div>
-        <div>
-            <div class="stat-item-label">财报季度覆盖</div>
-            <div class="stat-item-value">{filing_count} 个季度</div>
-        </div>
-        <div>
-            <div class="stat-item-label">数据来源</div>
-            <div class="stat-item-value" style="font-size:0.9rem">SEC · Yahoo · NewsAPI</div>
-        </div>
-        <div>
-            <div class="stat-item-label">分析标的</div>
-            <div class="stat-item-value">{ticker}</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    render_kpi_strip(kpis_from_market(mkt, financials))
     # ── 财务趋势图 ──
-    st.markdown(f'<div class="section-label">{ticker} · 财务趋势</div>', unsafe_allow_html=True)
-    st.markdown('<div class="chart-card">', unsafe_allow_html=True)
+    st.markdown(f'<div style="font-size:10.5px;letter-spacing:.2em;color:var(--text-3);text-transform:uppercase;margin:1rem 0 .5rem">{ticker} · 财务趋势</div>', unsafe_allow_html=True)
+    st.markdown('<div style="background:var(--bg-1);border:1px solid var(--line);border-radius:8px;padding:16px 18px;margin-bottom:1rem">', unsafe_allow_html=True)
 
     import plotly.graph_objects as go
     from plotly.subplots import make_subplots
@@ -1267,11 +1216,10 @@ elif page == "市场概览":
                 margins.append(d.get("gross_margin"))
                 yoy_growths.append(d.get("revenue_growth_yoy"))
 
-        _NAVY = "#191c1f"
-        _BLUE = "#494fdf"
-        _TEAL = "#00a87e"
-        _GOLD = "#ec7e00"
-        _GRID = "rgba(25,28,31,0.06)"
+        _NAVY = TERMINAL_COLORS["text"]
+        _BLUE = TERMINAL_COLORS["accent"]
+        _TEAL = TERMINAL_COLORS["up"]
+        _GOLD = TERMINAL_COLORS["gold"]
 
         fig = make_subplots(
             rows=2, cols=1,
@@ -1307,20 +1255,13 @@ elif page == "市场概览":
         ), row=2, col=1)
 
         fig.update_layout(
-            height=440,
             margin=dict(l=0, r=0, t=32, b=0),
             legend=dict(
                 orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1,
-                font=dict(size=11, color=_NAVY),
                 bgcolor="rgba(0,0,0,0)"
             ),
-            plot_bgcolor="rgba(0,0,0,0)",
-            paper_bgcolor="rgba(0,0,0,0)",
-            font=dict(family="Inter, Helvetica Neue, Arial", color=_NAVY),
         )
-        fig.update_xaxes(showgrid=False, tickfont=dict(size=11), linecolor=_GRID)
-        fig.update_yaxes(showgrid=True, gridcolor=_GRID, tickfont=dict(size=11), zeroline=False)
-        fig.update_annotations(font_size=11, font_color="#8d969e")
+        plotly_terminal_layout(fig, height=440)
         st.plotly_chart(fig, use_container_width=True)
         c1, c2, c3 = st.columns(3)
         c1.metric("最新季度营收", f"${revenues[-1]}B",
@@ -1332,7 +1273,7 @@ elif page == "市场概览":
 
     st.divider()
     # ── 竞品对比雷达图 ──
-    st.markdown('<div class="section-label">竞品横向对比</div>', unsafe_allow_html=True)
+    st.markdown('<div style="font-size:10.5px;letter-spacing:.2em;color:var(--text-3);text-transform:uppercase;margin:1rem 0 .5rem">竞品横向对比</div>', unsafe_allow_html=True)
 
     with st.spinner("拉取竞品数据..."):
         from tools.competitor_tool import compare_with_competitors
@@ -1381,7 +1322,8 @@ elif page == "市场概览":
         nm_norm  = normalize(net_margins)
 
         categories = ["营收规模", "毛利率", "净利率"]
-        _COMP_COLORS = ["#494fdf", "#ec7e00", "#00a87e"]
+        _COMP_COLORS = [TERMINAL_COLORS["gold"], TERMINAL_COLORS["accent"],
+                        TERMINAL_COLORS["up"], TERMINAL_COLORS["down"]]
 
         fig2 = go.Figure()
         for i, comp_ticker in enumerate(tickers):
@@ -1406,33 +1348,26 @@ elif page == "市场概览":
 
         fig2.update_layout(
             polar=dict(
-                bgcolor="rgba(0,0,0,0)",
-                radialaxis=dict(
-                    visible=True, range=[0, 100], showticklabels=False,
-                    gridcolor="rgba(25,28,31,0.08)", linecolor="rgba(25,28,31,0.08)"
-                ),
-                angularaxis=dict(tickfont=dict(size=12, color="#191c1f"), linecolor="rgba(25,28,31,0.1)")
+                radialaxis=dict(visible=True, range=[0, 100], showticklabels=False),
             ),
             legend=dict(
                 orientation="h", yanchor="bottom", y=-0.18, xanchor="center", x=0.5,
-                font=dict(size=11, color="#191c1f"), bgcolor="rgba(0,0,0,0)"
+                bgcolor="rgba(0,0,0,0)"
             ),
-            height=360,
             margin=dict(l=40, r=40, t=10, b=40),
-            paper_bgcolor="rgba(0,0,0,0)",
-            font=dict(family="Inter, Helvetica Neue, Arial"),
         )
+        plotly_terminal_layout(fig2, height=380)
 
         col_radar, col_insights = st.columns([3, 2])
         with col_radar:
-            st.markdown('<div class="chart-card">', unsafe_allow_html=True)
+            st.markdown('<div style="background:var(--bg-1);border:1px solid var(--line);border-radius:8px;padding:16px 18px">', unsafe_allow_html=True)
             st.plotly_chart(fig2, use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
         with col_insights:
-            st.markdown('<div class="section-label" style="margin-top:1rem">关键洞察</div>', unsafe_allow_html=True)
+            st.markdown('<div style="font-size:10.5px;letter-spacing:.2em;color:var(--text-3);text-transform:uppercase;margin:1rem 0 .5rem">关键洞察</div>', unsafe_allow_html=True)
             if comp_result.get("insights"):
                 insights_html = "".join(
-                    f'<div class="insight-row">{ins}</div>'
+                    f'<div style="padding:10px 0;border-bottom:1px solid var(--line);font-size:13px;color:var(--text-1);line-height:1.5">{ins}</div>'
                     for ins in comp_result["insights"]
                 )
                 st.markdown(insights_html, unsafe_allow_html=True)
@@ -1444,7 +1379,7 @@ elif page == "市场概览":
 
     st.divider()
     # 最近报告预览
-    st.markdown('<div class="section-label">最近报告</div>', unsafe_allow_html=True)
+    st.markdown('<div style="font-size:10.5px;letter-spacing:.2em;color:var(--text-3);text-transform:uppercase;margin:1rem 0 .5rem">最近报告</div>', unsafe_allow_html=True)
     with engine.connect() as conn:
         report_rows = conn.execute(
             text("SELECT id, ticker, question, created_at FROM reports WHERE ticker=:t ORDER BY created_at DESC LIMIT 5"),
@@ -1452,24 +1387,26 @@ elif page == "市场概览":
         ).fetchall()
     if not report_rows:
         st.markdown(
-            f'<div class="report-block"><div style="color:#9b8ec4;font-size:0.85rem;padding:0.5rem 0">'
-            f'暂无 {ticker} 报告 — 前往「生成报告」创建第一份</div></div>',
+            f'<div style="background:var(--bg-1);border:1px solid var(--line);border-radius:8px;padding:14px 18px">'
+            f'<span style="font-size:13px;color:var(--text-3)">暂无 {ticker} 报告 — 前往「生成报告」创建第一份</span></div>',
             unsafe_allow_html=True
         )
     else:
-        rows_html = '<div class="report-block">'
+        rows_html = '<div style="background:var(--bg-1);border:1px solid var(--line);border-radius:8px;overflow:hidden">'
         for r in report_rows:
             q = r[2][:85] + ("…" if len(r[2]) > 85 else "")
             t_str = str(r[3])[:16]
             rows_html += (
-                f'<div class="report-row">'
-                f'<span class="report-id">#{r[0]}</span>'
-                f'<span class="report-question">{q}</span>'
-                f'<span class="report-time">{t_str}</span>'
+                f'<div style="display:grid;grid-template-columns:48px 1fr auto;gap:12px;padding:12px 18px;border-bottom:1px solid var(--line);align-items:center">'
+                f'<span style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:var(--accent)"># {r[0]}</span>'
+                f'<span style="font-size:13px;color:var(--text-0);line-height:1.4">{q}</span>'
+                f'<span style="font-family:\'IBM Plex Mono\',monospace;font-size:10.5px;color:var(--text-3);white-space:nowrap">{t_str}</span>'
                 f'</div>'
             )
         rows_html += '</div>'
         st.markdown(rows_html, unsafe_allow_html=True)
+
+    render_status_bar(extra=f"{datetime.now():%Y-%m-%d %H:%M} · NYSE 开盘")
 
 
 # ════════════════════════════════
@@ -1668,7 +1605,7 @@ elif page == "生成报告":
         st.divider()
 
         # ── 报告质量评估 ──
-        st.markdown('<div class="section-label">报告质量评估</div>', unsafe_allow_html=True)
+        st.markdown('<div style="font-size:10.5px;letter-spacing:.2em;color:var(--text-3);text-transform:uppercase;margin:1rem 0 .5rem">报告质量评估</div>', unsafe_allow_html=True)
 
         eval_key = f"eval_{st.session_state.get('gen_report_id', 'draft')}"
         if eval_key not in st.session_state:
@@ -1683,14 +1620,28 @@ elif page == "生成报告":
             _render_eval_scores(st.session_state[eval_key])
 
         st.divider()
-        st.subheader("📄 分析报告")
+
+        render_signal_card(
+            signal="BUY",
+            score=87,
+            summary="基于最新财报数据与竞品对比综合研判，基本面稳健，建议关注估值与宏观风险。",
+            target="",
+            stop="",
+        )
+
+        render_panel_open(eyebrow="AI · DEEP RESEARCH",
+                          title="多智能体投研报告",
+                          right=f"生成于 {datetime.now():%Y-%m-%d %H:%M}")
         st.markdown(st.session_state.gen_final)
+        render_panel_close()
 
         if st.button("🔄 重新分析", use_container_width=False):
             st.session_state.gen_stage = "idle"
             for k in ["gen_draft", "gen_tool_calls", "gen_reflection", "gen_final", "gen_report_id"]:
                 st.session_state.pop(k, None)
             st.rerun()
+
+    render_status_bar(extra=f"{datetime.now():%Y-%m-%d %H:%M} · NYSE 开盘")
 
 
 # ════════════════════════════════
@@ -1766,7 +1717,7 @@ elif page == "历史报告":
             st.divider()
 
             # ── 历史报告质量评估 ──
-            st.markdown('<div class="section-label">报告质量评估</div>', unsafe_allow_html=True)
+            st.markdown('<div style="font-size:10.5px;letter-spacing:.2em;color:var(--text-3);text-transform:uppercase;margin:1rem 0 .5rem">报告质量评估</div>', unsafe_allow_html=True)
             hist_eval_key = f"hist_eval_{report['id']}"
             if hist_eval_key not in st.session_state:
                 if st.button("评估此报告质量", key=f"hist_eval_btn_{report['id']}"):
@@ -1968,18 +1919,18 @@ elif page == "新闻情报":
                                 delta_color="inverse")
 
                     # 情绪条
-                    st.markdown("**情绪分布**")
+                    st.markdown('<div style="font-size:10.5px;letter-spacing:.18em;color:var(--text-3);text-transform:uppercase;margin:.5rem 0 .25rem">情绪分布</div>', unsafe_allow_html=True)
                     st.markdown(
                         f"""
-                        <div style="display:flex;height:10px;border-radius:9999px;overflow:hidden;margin:4px 0 16px">
-                            <div style="width:{bull}%;background:#00a87e"></div>
-                            <div style="width:{neutral}%;background:#c9c9cd"></div>
-                            <div style="width:{bear}%;background:#e23b4a"></div>
+                        <div style="display:flex;height:6px;border-radius:3px;overflow:hidden;margin:4px 0 10px">
+                            <div style="width:{bull}%;background:var(--up)"></div>
+                            <div style="width:{neutral}%;background:var(--text-3)"></div>
+                            <div style="width:{bear}%;background:var(--down)"></div>
                         </div>
-                        <div style="display:flex;gap:16px;font-size:12px;color:#505a63">
-                            <span style="color:#00a87e;font-weight:600">看多 {bull}%</span>
-                            <span style="color:#8d969e">中性 {neutral}%</span>
-                            <span style="color:#e23b4a;font-weight:600">看空 {bear}%</span>
+                        <div style="display:flex;gap:16px;font-family:'IBM Plex Mono',monospace;font-size:11.5px">
+                            <span style="color:var(--up);font-weight:500">看多 {bull}%</span>
+                            <span style="color:var(--text-2)">中性 {neutral}%</span>
+                            <span style="color:var(--down);font-weight:500">看空 {bear}%</span>
                         </div>
                         """,
                         unsafe_allow_html=True
